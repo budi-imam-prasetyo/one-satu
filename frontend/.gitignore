@@ -1,0 +1,16 @@
+# SvelteKit
+.svelte-kit/
+.output/
+
+# Deployment
+.vercel/
+.netlify/
+.wrangler/
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Allow templates
+!.env.example
+!.env.test

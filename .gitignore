@@ -23,21 +23,19 @@ logs/
 Thumbs.db
 
 # =========================
-# IntelliJ IDEA
+# IDE
 # =========================
 .idea/
 *.iml
-
-# =========================
-# VSCode
-# =========================
 .vscode/
 
 # =========================
 # Environment variables
 # =========================
 .env
-.env.*
+.env.local
+.env.production
+.env.development
 
 # =========================
 # Docker
@@ -46,13 +44,11 @@ docker-data/
 *.pid
 
 # =========================
-# Frontend
+# Frontend shared
 # =========================
 node_modules/
 dist/
 build/
-.next/
-.nuxt/
 .cache/
 
 # =========================
