@@ -5,13 +5,16 @@ Backend menggunakan:
 - Java 26
 - Spring Boot 4
 - Maven
-- MySQL
-- Docker Compose
 
 Frontend menggunakan:
 
 - Bun 1.3.13
-- Svelte
+- React
+- Vite
+
+Database menggunakan:
+
+- Supabase (PostgreSQL + PostgREST)
 
 ---
 
@@ -174,20 +177,59 @@ K1/
 
 ---
 
-# Menjalankan Project
+# Services
 
-## Menjalankan Full Project (Recommended)
+Project ini terdiri dari beberapa service:
 
-Dari root project:
+| Service | Container | Port | Keterangan |
+|---|---|---|---|
+| `backend` | `tago-backend` | `8080` | Spring Boot API |
+| `frontend-dev` | `tago-frontend-dev` | `5173` | React + Vite (dev, Bun) |
+| `frontend-prod` | `tago-frontend-prod` | `80` | React (production, Nginx) |
+| `supabase-db` | `tago-supabase-db` | `5432` | PostgreSQL |
+| `supabase-api` | `tago-supabase-api` | `8000` | PostgREST API |
+| `supabase-studio` | `tago-supabase-studio` | `3000` | Supabase Studio |
 
-```bash
-docker compose up --build
+Frontend menggunakan **profiles**:
+- `dev` → jalankan `frontend-dev`
+- `prod` → jalankan `frontend-prod`
+
+---
+
+# Environment Variables
+
+Buat file `.env` di root project sebelum menjalankan:
+
+```env
+VITE_SUPABASE_URL=http://localhost:8000
+VITE_SUPABASE_ANON_KEY=your_anon_key_here
+POSTGRES_PASSWORD=postgres
+JWT_SECRET=your_jwt_secret_here
+SUPABASE_ANON_KEY=your_anon_key_here
 ```
 
-Jika background mode:
+---
+
+# Menjalankan Project
+
+## Mode Development (Recommended)
+
+Menjalankan semua service termasuk frontend dev:
 
 ```bash
-docker compose up --build -d
+docker compose --profile dev up --build
+```
+
+Background mode:
+
+```bash
+docker compose --profile dev up --build -d
+```
+
+## Mode Production
+
+```bash
+docker compose --profile prod up --build
 ```
 
 ---
@@ -200,48 +242,52 @@ Backend:
 http://localhost:8080
 ```
 
-Frontend:
+Frontend Dev:
 
 ```text
 http://localhost:5173
 ```
 
-MySQL:
+Frontend Prod:
+
+```text
+http://localhost:80
+```
+
+Supabase API (PostgREST):
+
+```text
+http://localhost:8000
+```
+
+Supabase Studio:
+
+```text
+http://localhost:3000
+```
+
+PostgreSQL:
 
 ```text
 Host     : localhost
-Port     : 3306
-Database : pbo_db
-Username : root
-Password : password
-```
-
-phpMyAdmin:
-
-```text
-http://localhost:8081
+Port     : 5432
+Database : postgres
+Username : postgres
+Password : postgres (atau sesuai .env)
 ```
 
 ---
 
-# Menjalankan Database Saja
-
-Jika ingin menjalankan MySQL saja:
+# Menjalankan Supabase Stack Saja
 
 ```bash
-docker compose up db
+docker compose up supabase-db supabase-api supabase-studio
 ```
 
 Background mode:
 
 ```bash
-docker compose up -d db
-```
-
-Stop database:
-
-```bash
-docker compose stop db
+docker compose up -d supabase-db supabase-api supabase-studio
 ```
 
 ---
@@ -266,10 +312,10 @@ java --version
 
 ## Jika Java Sudah Versi 26
 
-1. Jalankan database:
+1. Jalankan Supabase:
 
 ```bash
-docker compose up -d db
+docker compose up -d supabase-db supabase-api
 ```
 
 2. Buka folder `backend` di IntelliJ IDEA
@@ -288,12 +334,6 @@ Gunakan backend dari Docker:
 
 ```bash
 docker compose up backend
-```
-
-atau:
-
-```bash
-docker compose up --build
 ```
 
 ---
@@ -354,22 +394,6 @@ http://localhost:5173
 
 ---
 
-## Menjalankan Frontend via Docker
-
-Jika tidak ingin install Bun secara lokal:
-
-```bash
-docker compose up frontend
-```
-
-Frontend tetap dapat diakses di:
-
-```text
-http://localhost:5173
-```
-
----
-
 # Stop Project
 
 ```bash
@@ -380,6 +404,12 @@ Hapus volume database:
 
 ```bash
 docker compose down -v
+```
+
+Stop termasuk profile dev:
+
+```bash
+docker compose --profile dev down
 ```
 
 ---
@@ -407,13 +437,19 @@ docker compose logs -f backend
 Frontend logs:
 
 ```bash
-docker compose logs -f frontend
+docker compose logs -f frontend-dev
 ```
 
-Database logs:
+Supabase DB logs:
 
 ```bash
-docker compose logs -f db
+docker compose logs -f supabase-db
+```
+
+Supabase API logs:
+
+```bash
+docker compose logs -f supabase-api
 ```
 
 ---
@@ -423,7 +459,7 @@ docker compose logs -f db
 Jika ada perubahan dependency atau Dockerfile:
 
 ```bash
-docker compose up --build
+docker compose --profile dev up --build
 ```
 
 Rebuild tanpa cache:
@@ -442,37 +478,95 @@ Backend:
 docker compose exec backend sh
 ```
 
-Frontend:
+Frontend Dev:
 
 ```bash
-docker compose exec frontend sh
+docker compose exec frontend-dev sh
 ```
 
-MySQL:
+Supabase DB:
 
 ```bash
-docker compose exec db bash
+docker compose exec supabase-db bash
 ```
 
-Masuk MySQL CLI:
+Masuk PostgreSQL CLI:
 
 ```bash
-mysql -u root -p
-```
-
-Password:
-
-```text
-password
+psql -U postgres
 ```
 
 ---
 
-# Push ke GitHub
+# Git — Branch, Add, Commit, Push
 
-## Alur Lengkap: Add → Commit → Push
+## Alur Kerja Git
 
-### 1. Cek Status Perubahan
+```
+main (branch utama)
+  └── feature/login       ← kamu kerja di sini
+  └── feature/register
+  └── fix/bug-halaman-utama
+```
+
+Setiap fitur atau perbaikan sebaiknya dikerjakan di branch sendiri, bukan langsung di `main`.
+
+---
+
+## 1. Cek Branch Aktif
+
+Lihat kamu sedang di branch mana:
+
+```bash
+git branch
+```
+
+Branch aktif ditandai dengan `*`.
+
+---
+
+## 2. Buat Branch Baru
+
+```bash
+git checkout -b nama-branch
+```
+
+Contoh:
+
+```bash
+git checkout -b feature/login
+git checkout -b feature/register
+git checkout -b fix/bug-halaman-utama
+```
+
+Penamaan branch yang disarankan:
+
+| Jenis | Format | Contoh |
+|---|---|---|
+| Fitur baru | `feature/nama-fitur` | `feature/login` |
+| Perbaikan bug | `fix/nama-bug` | `fix/bug-login` |
+| Perbaikan kecil | `chore/nama` | `chore/update-readme` |
+
+---
+
+## 3. Pindah Branch
+
+Pindah ke branch yang sudah ada:
+
+```bash
+git checkout nama-branch
+```
+
+Contoh:
+
+```bash
+git checkout main
+git checkout feature/login
+```
+
+---
+
+## 4. Cek Status Perubahan
 
 Lihat file apa saja yang berubah atau belum di-track:
 
@@ -482,7 +576,7 @@ git status
 
 ---
 
-### 2. Tambahkan File ke Staging (Add)
+## 5. Tambahkan File ke Staging (Add)
 
 Tambahkan semua file sekaligus:
 
@@ -493,7 +587,7 @@ git add .
 Atau tambahkan file tertentu saja:
 
 ```bash
-git add nama-file.java
+git add nama-file.jsx
 git add backend/src/main/java/com/example/Controller.java
 ```
 
@@ -507,7 +601,7 @@ File yang siap di-commit akan berwarna hijau.
 
 ---
 
-### 3. Buat Commit
+## 6. Buat Commit
 
 ```bash
 git commit -m "pesan commit kamu"
@@ -523,7 +617,7 @@ git commit -m "chore: update dependency di pom.xml"
 
 ---
 
-### 4. Push ke GitHub
+## 7. Push ke GitHub
 
 Push ke branch saat ini:
 
@@ -540,29 +634,11 @@ git push -u origin nama-branch
 Contoh:
 
 ```bash
-git push -u origin main
 git push -u origin feature/login
+git push -u origin fix/bug-halaman-utama
 ```
 
----
-
-## Cek Branch Aktif
-
-```bash
-git branch
-```
-
-Pindah branch:
-
-```bash
-git checkout nama-branch
-```
-
-Buat branch baru dan langsung pindah:
-
-```bash
-git checkout -b nama-branch-baru
-```
+Setelah itu, buka GitHub dan buat **Pull Request** ke branch `main`.
 
 ---
 
@@ -571,7 +647,9 @@ git checkout -b nama-branch-baru
 Sebelum mulai kerja, selalu ambil perubahan terbaru:
 
 ```bash
+git checkout main
 git pull
+git checkout nama-branch-kamu
 ```
 
 ---
@@ -579,6 +657,12 @@ git pull
 ## Ringkasan Command Git
 
 ```bash
+# Buat branch baru dan langsung pindah
+git checkout -b feature/nama-fitur
+
+# Pindah ke branch lain
+git checkout nama-branch
+
 # Cek status
 git status
 
@@ -586,9 +670,12 @@ git status
 git add .
 
 # Commit
-git commit -m "pesan commit"
+git commit -m "feat: pesan commit"
 
-# Push
+# Push pertama kali (branch baru)
+git push -u origin nama-branch
+
+# Push selanjutnya
 git push
 ```
 
@@ -622,18 +709,20 @@ Cek proses:
 
 ```bash
 sudo lsof -i :8080
-sudo lsof -i :3306
 sudo lsof -i :5173
-sudo lsof -i :8081
+sudo lsof -i :8000
+sudo lsof -i :3000
+sudo lsof -i :5432
 ```
 
 ### Windows
 
 ```powershell
 netstat -ano | findstr :8080
-netstat -ano | findstr :3306
 netstat -ano | findstr :5173
-netstat -ano | findstr :8081
+netstat -ano | findstr :8000
+netstat -ano | findstr :3000
+netstat -ano | findstr :5432
 ```
 
 ---
@@ -674,7 +763,7 @@ Atau via Docker, hapus volume lalu rebuild:
 
 ```bash
 docker compose down -v
-docker compose up --build
+docker compose --profile dev up --build
 ```
 
 ---
@@ -707,11 +796,14 @@ Generate PAT di: https://github.com/settings/tokens
 
 ```text
 compose.yaml
+.env
 backend/Dockerfile
 backend/pom.xml
 backend/src/main/resources/application.yaml
 frontend/package.json
 frontend/vite.config.js
+frontend/Dockerfile
+frontend/supabase/migrations/
 ```
 
 ---
@@ -733,10 +825,16 @@ dist/
 
 # Command Cepat
 
-## Build + Run
+## Build + Run (Dev)
 
 ```bash
-docker compose up --build
+docker compose --profile dev up --build
+```
+
+## Build + Run (Prod)
+
+```bash
+docker compose --profile prod up --build
 ```
 
 ## Stop
