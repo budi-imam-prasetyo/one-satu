@@ -6,24 +6,32 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+
     container_name: tago-backend
+
     ports:
       - "8080:8080"
+
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+
     volumes:
       - ./backend:/app
       - maven_cache:/root/.m2
+
     depends_on:
       db:
         condition: service_healthy
+
     restart: unless-stopped
+
     stdin_open: true
     tty: true
+
     networks:
       - tago-network
 
@@ -32,24 +40,35 @@ services:
   # =========================
   frontend-dev:
     image: oven/bun:1.3.13
+
     container_name: tago-frontend-dev
+
     working_dir: /app
+
     ports:
       - "5173:5173"
+
     volumes:
       - ./frontend:/app
       - frontend_node_modules:/app/node_modules
+
     environment:
       NODE_ENV: development
       VITE_API_URL: http://localhost:8080
+
     command: sh -c "bun install && bun run dev --host 0.0.0.0"
-    restart: unless-stopped
-    stdin_open: true
-    tty: true
-    profiles:
-      - dev
+
     depends_on:
       - backend
+
+    restart: unless-stopped
+
+    stdin_open: true
+    tty: true
+
+    profiles:
+      - dev
+
     networks:
       - tago-network
 
@@ -61,16 +80,23 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       target: production
+
     container_name: tago-frontend-prod
+
     ports:
       - "80:80"
+
     environment:
       VITE_API_URL: http://localhost:8080
-    restart: unless-stopped
-    profiles:
-      - prod
+
     depends_on:
       - backend
+
+    restart: unless-stopped
+
+    profiles:
+      - prod
+
     networks:
       - tago-network
 
@@ -79,25 +105,29 @@ services:
   # =========================
   db:
     image: postgres:17-alpine
+
     container_name: tago-postgres
+
     restart: unless-stopped
+
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
     ports:
-      - "5432:5432"
+      - "5433:5432"
+
     volumes:
       - db_data:/var/lib/postgresql/data
+
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
-        ]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 20s
+
     networks:
       - tago-network
 
@@ -106,16 +136,22 @@ services:
   # =========================
   pgadmin:
     image: dpage/pgadmin4:latest
+
     container_name: tago-pgadmin
+
     restart: unless-stopped
+
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+
     ports:
       - "8081:80"
+
     depends_on:
       db:
         condition: service_healthy
+
     networks:
       - tago-network
 
