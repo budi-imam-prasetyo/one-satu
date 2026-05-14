@@ -10,10 +10,11 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/pbo_db?createDatabaseIfNotExist=true
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
     volumes:
       - ./backend:/app
       - maven_cache:/root/.m2
@@ -40,8 +41,7 @@ services:
       - frontend_node_modules:/app/node_modules
     environment:
       NODE_ENV: development
-      VITE_SUPABASE_URL: http://localhost:8000
-      VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+      VITE_API_URL: http://localhost:8080
     command: sh -c "bun install && bun run dev --host 0.0.0.0"
     restart: unless-stopped
     stdin_open: true
@@ -49,7 +49,7 @@ services:
     profiles:
       - dev
     depends_on:
-      - supabase-api
+      - backend
     networks:
       - tago-network
 
@@ -65,30 +65,36 @@ services:
     ports:
       - "80:80"
     environment:
-      VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
-      VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+      VITE_API_URL: http://localhost:8080
     restart: unless-stopped
     profiles:
       - prod
+    depends_on:
+      - backend
     networks:
       - tago-network
 
   # =========================
-  # MYSQL DATABASE
+  # POSTGRES DATABASE
   # =========================
   db:
-    image: mysql:9.0
-    container_name: tago-mysql
+    image: postgres:17-alpine
+    container_name: tago-postgres
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: pbo_db
-      MYSQL_ROOT_PASSWORD: password
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - db_data:/var/lib/mysql
+      - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ppassword"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
+        ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -96,82 +102,20 @@ services:
       - tago-network
 
   # =========================
-  # PHPMYADMIN
+  # PGADMIN
   # =========================
-  phpmyadmin:
-    image: phpmyadmin:latest
-    container_name: tago-phpmyadmin
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: tago-pgadmin
     restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
     ports:
       - "8081:80"
-    environment:
-      PMA_HOST: db
-      PMA_PORT: 3306
-      MYSQL_ROOT_PASSWORD: password
     depends_on:
       db:
         condition: service_healthy
-    networks:
-      - tago-network
-
-  # =========================
-  # SUPABASE POSTGRES
-  # =========================
-  supabase-db:
-    image: supabase/postgres:15.1.0.147
-    container_name: tago-supabase-db
-    restart: unless-stopped
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: postgres
-    volumes:
-      - supabase_db_data:/var/lib/postgresql/data
-      - ./frontend/supabase/migrations:/docker-entrypoint-initdb.d
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - tago-network
-
-  # =========================
-  # SUPABASE API
-  # =========================
-  supabase-api:
-    image: postgrest/postgrest:v11.2.0
-    container_name: tago-supabase-api
-    restart: unless-stopped
-    ports:
-      - "8000:3000"
-    environment:
-      PGRST_DB_URI: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@supabase-db:5432/postgres
-      PGRST_DB_SCHEMAS: public
-      PGRST_DB_ANON_ROLE: anon
-      PGRST_JWT_SECRET: ${JWT_SECRET}
-    depends_on:
-      supabase-db:
-        condition: service_healthy
-    networks:
-      - tago-network
-
-  # =========================
-  # SUPABASE STUDIO
-  # =========================
-  supabase-studio:
-    image: supabase/studio:20231123-64a766c
-    container_name: tago-supabase-studio
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      SUPABASE_URL: http://supabase-api:3000
-      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
-      STUDIO_PG_META_URL: http://supabase-api:3000/pg
-    depends_on:
-      - supabase-api
     networks:
       - tago-network
 
@@ -183,4 +127,3 @@ volumes:
   db_data:
   maven_cache:
   frontend_node_modules:
-  supabase_db_data:
