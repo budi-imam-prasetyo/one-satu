@@ -1,7 +1,5 @@
-package kelompok_satu.backend.controller;
+package kelompok_satu.backend.user;
 
-import kelompok_satu.backend.model.User;
-import kelompok_satu.backend.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 

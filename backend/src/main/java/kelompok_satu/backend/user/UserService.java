@@ -1,7 +1,5 @@
-package kelompok_satu.backend.service;
+package kelompok_satu.backend.user;
 
-import kelompok_satu.backend.model.User;
-import kelompok_satu.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
