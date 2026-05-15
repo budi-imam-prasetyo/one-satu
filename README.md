@@ -818,7 +818,7 @@ node_modules/
 dist/
 .idea/
 .vscode/
-.env
+backend/.env
 ```
 
 ---

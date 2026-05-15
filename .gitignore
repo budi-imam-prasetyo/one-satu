@@ -32,7 +32,7 @@ Thumbs.db
 # =========================
 # Environment variables
 # =========================
-.env
+backend/.env
 .env.local
 .env.production
 .env.development
