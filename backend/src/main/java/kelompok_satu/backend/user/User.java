@@ -5,6 +5,7 @@ import kelompok_satu.backend.notification.Notification;
 import kelompok_satu.backend.infrastructure.persistence.AuditableEntity;
 import kelompok_satu.backend.target.Target;
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,13 +33,13 @@ public class User extends AuditableEntity {
     @Column(name = "is_guest", nullable = false)
     private boolean isGuest = true;
 
-    @Column(name = "username")
+    @Column(name = "username", unique = true)
     private String username;
 
     @Column(name = "name")
     private String name;
 
-    @Column(name = "email")
+    @Column(name = "email", unique = true)
     private String email;
 
     @Column(name = "fcm_token")
@@ -47,9 +48,11 @@ public class User extends AuditableEntity {
     @Column(name = "last_active")
     private LocalDateTime lastActive;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Target> targets;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Notification> notifications;
 }
