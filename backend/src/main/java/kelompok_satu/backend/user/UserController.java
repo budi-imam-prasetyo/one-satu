@@ -1,16 +1,19 @@
 package kelompok_satu.backend.user;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
 
-    @Autowired
-    private UserService userService;
+    private final UserService userService;
+
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
 
     @GetMapping
     public List<User> getAllUsers() {
@@ -18,8 +21,8 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public User getUserById(@PathVariable Long id) {
-        return userService.getUserById(id).orElseThrow(() -> new RuntimeException("User not found"));
+    public User getUserById(@PathVariable UUID id) {
+        return userService.getUserById(id);
     }
 
     @PostMapping
@@ -28,12 +31,15 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public User updateUser(@PathVariable Long id, @RequestBody User user) {
+    public User updateUser(
+            @PathVariable UUID id,
+            @RequestBody User user
+    ) {
         return userService.updateUser(id, user);
     }
 
     @DeleteMapping("/{id}")
-    public String deleteUser(@PathVariable Long id) {
+    public String deleteUser(@PathVariable UUID id) {
         userService.deleteUser(id);
         return "User deleted successfully";
     }

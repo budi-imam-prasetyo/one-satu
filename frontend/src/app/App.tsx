@@ -1,15 +1,20 @@
-import React from 'react';
-import { RouterProvider } from 'react-router';
+import { RouterProvider } from 'react-router-dom';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+
 import { router } from './router';
-import { AppProvider } from './store/index';
+import { AppProvider } from './store';
 import { ThemeProvider } from './contexts/ThemeContext';
 
 export default function App() {
-  return (
-    <ThemeProvider>
-      <AppProvider>
-        <RouterProvider router={router} />
-      </AppProvider>
-    </ThemeProvider>
-  );
+    return (
+        <GoogleOAuthProvider
+            clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}
+        >
+            <AppProvider>
+                <ThemeProvider>
+                    <RouterProvider router={router} />
+                </ThemeProvider>
+            </AppProvider>
+        </GoogleOAuthProvider>
+    );
 }

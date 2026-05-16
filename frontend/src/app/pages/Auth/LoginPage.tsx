@@ -4,6 +4,8 @@ import { useAppContext } from '../../store';
 import { motion } from 'motion/react';
 import { Wallet, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import * as authService from '../../services/authService';
+import axios from 'axios';
+import { useGoogleLogin } from '@react-oauth/google';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -36,26 +38,64 @@ export const LoginPage = () => {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setError('');
-    setIsLoading(true);
-    try {
-      // ── Real API call (uncomment when backend is ready) ──────────────────
-      // Redirect to Google OAuth endpoint:
-      // window.location.href = `${BASE_URL}/auth/google`;
-      // ────────────────────────────────────────────────────────────────────
+  const googleLogin = useGoogleLogin({
+    flow: 'implicit',
 
-      // Dummy: bypass with dummy user
-      const { user } = await authService.loginUser({ email: 'budi@example.com', password: '' });
-      login({ id: user.id, name: user.name, username: user.username ?? undefined, email: user.email ?? '' });
-      navigate('/dashboard');
-    } catch {
-      setError('Login Google gagal. Coba lagi.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    onSuccess: async (tokenResponse) => {
+      try {
+        setError('');
+        setIsLoading(true);
 
+        // ambil profile user dari google
+        const googleUser = await axios.get(
+            'https://www.googleapis.com/oauth2/v3/userinfo',
+            {
+              headers: {
+                Authorization: `Bearer ${tokenResponse.access_token}`,
+              },
+            }
+        );
+
+        const profile = googleUser.data;
+
+        // kirim ke backend
+        const response = await axios.post(
+            `${import.meta.env.VITE_API_URL}/api/auth/google`,
+            {
+              googleId: profile.sub,
+              name: profile.name,
+              email: profile.email,
+              picture: profile.picture,
+            }
+        );
+
+        const { token, user } = response.data;
+
+        // simpan jwt aplikasi
+        localStorage.setItem('access_token', token);
+
+        // simpan user ke context
+        login({
+          id: user.id,
+          name: user.name,
+          username: user.username ?? undefined,
+          email: user.email ?? '',
+        });
+
+        navigate('/dashboard');
+
+      } catch (err) {
+        console.error(err);
+        setError('Login Google gagal.');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+
+    onError: () => {
+      setError('Login Google dibatalkan.');
+    },
+  });
   return (
     <div className="flex-1 flex flex-col justify-center items-center py-12 px-4 sm:px-6 bg-neutral-50 dark:bg-neutral-950">
       <motion.div
@@ -79,8 +119,7 @@ export const LoginPage = () => {
           )}
 
           {/* Google Login */}
-          <button
-            onClick={handleGoogleLogin}
+          <button onClick={() => googleLogin()}
             disabled={isLoading}
             className="w-full flex items-center justify-center gap-3 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 py-3.5 rounded-xl font-medium hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors mb-6 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
           >
