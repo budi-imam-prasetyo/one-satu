@@ -69,10 +69,10 @@ export const LoginPage = () => {
             }
         );
 
-        const { token, user } = response.data;
+        const { access_token, user } = response.data;
 
         // simpan jwt aplikasi
-        localStorage.setItem('access_token', token);
+        localStorage.setItem('access_token', access_token);
 
         // simpan user ke context
         login({
