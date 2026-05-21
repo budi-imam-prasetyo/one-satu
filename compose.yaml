@@ -173,3 +173,4 @@ volumes:
   db_data:
   maven_cache:
   frontend_node_modules:
+  pgadmin_data:
