@@ -27,5 +27,5 @@ export interface RegisterRequest {
 export interface AuthResponse {
   user: ApiUser;
   access_token: string;
-  refresh_token: string;
+  refresh_token: string | null;
 }

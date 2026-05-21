@@ -54,6 +54,63 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    public User upsertGoogleUser(String googleId, String name, String email) {
+        User user = null;
+
+        if (googleId != null && !googleId.isBlank()) {
+            user = userRepository.findByGoogleId(googleId).orElse(null);
+        }
+
+        if (user == null && email != null && !email.isBlank()) {
+            user = userRepository.findByEmail(email).orElse(null);
+        }
+
+        if (user == null) {
+            String username = generateUniqueUsername(email);
+            user = User.builder()
+                    .googleId(googleId)
+                    .name(name)
+                    .email(email)
+                    .username(username)
+                    .isGuest(false)
+                    .lastActive(LocalDateTime.now())
+                    .build();
+            return userRepository.save(user);
+        }
+
+        if (googleId != null && !googleId.isBlank()) {
+            user.setGoogleId(googleId);
+        }
+        if (name != null && !name.isBlank()) {
+            user.setName(name);
+        }
+        if (email != null && !email.isBlank()) {
+            user.setEmail(email);
+        }
+        if (user.getUsername() == null || user.getUsername().isBlank()) {
+            user.setUsername(generateUniqueUsername(email));
+        }
+        user.setGuest(false);
+        user.setLastActive(LocalDateTime.now());
+
+        return userRepository.save(user);
+    }
+
+    private String generateUniqueUsername(String email) {
+        String base = "user";
+        if (email != null && email.contains("@")) {
+            base = email.substring(0, email.indexOf('@'));
+        }
+
+        String candidate = base;
+        int attempt = 0;
+        while (userRepository.existsByUsername(candidate)) {
+            attempt++;
+            candidate = base + "_" + attempt;
+        }
+        return candidate;
+    }
+
     public void deleteUser(UUID id) {
         User user = getUserById(id);
         userRepository.delete(user);
