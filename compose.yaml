@@ -25,6 +25,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
     volumes:
       - ./backend:/app
+      - /app/target
       - maven_cache:/root/.m2
 
     depends_on:
