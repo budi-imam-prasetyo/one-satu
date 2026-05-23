@@ -30,11 +30,11 @@ public class Target extends AuditableEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "name", nullable = false)
-    private String name;
+    @Column(name = "title", nullable = false)
+    private String title;
 
-    @Column(name = "description", columnDefinition = "TEXT")
-    private String description;
+//    @Column(name = "description", columnDefinition = "TEXT")
+//    private String description;
 
     @Column(name = "image_url")
     private String imageUrl;
@@ -49,7 +49,7 @@ public class Target extends AuditableEntity {
     @Column(name = "current_amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal currentAmount = BigDecimal.ZERO;
 
-    @Column(name = "deadline")
+    @Column(name = "deadline", nullable = true)
     private LocalDate deadline;
 
     @OneToOne(mappedBy = "target", cascade = CascadeType.ALL, orphanRemoval = true)
