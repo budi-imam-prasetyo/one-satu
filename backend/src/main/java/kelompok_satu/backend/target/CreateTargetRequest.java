@@ -1,5 +1,6 @@
 package kelompok_satu.backend.target;
 
+import jakarta.persistence.EnumeratedValue;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -26,6 +27,11 @@ public record CreateTargetRequest(
         LocalDate deadline,
 
         @NotNull
-        ScheduleRequest schedule
+        @EnumeratedValue()
+        TargetFrequency frequency,
+
+        @NotNull
+        @Min(0)
+        BigDecimal frequencyAmount
 ) {
 }

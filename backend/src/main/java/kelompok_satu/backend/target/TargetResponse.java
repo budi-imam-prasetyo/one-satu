@@ -13,7 +13,8 @@ public record TargetResponse(
         TargetStatus status,
         BigDecimal targetAmount,
         BigDecimal currentAmount,
-        LocalDate deadline,
-        ScheduleResponse schedule
+        TargetFrequency frequency,
+        BigDecimal frequencyAmount,
+        LocalDate deadline
 ) {
 }

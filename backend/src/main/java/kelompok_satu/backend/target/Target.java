@@ -2,7 +2,6 @@ package kelompok_satu.backend.target;
 
 import jakarta.persistence.*;
 import kelompok_satu.backend.notification.Notification;
-import kelompok_satu.backend.schedule.Schedule;
 import kelompok_satu.backend.transaction.Transaction;
 import kelompok_satu.backend.user.User;
 import kelompok_satu.backend.infrastructure.persistence.AuditableEntity;
@@ -49,11 +48,15 @@ public class Target extends AuditableEntity {
     @Column(name = "current_amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal currentAmount = BigDecimal.ZERO;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "frequency", nullable = false)
+    private TargetFrequency frequency;
+
+    @Column(name = "frequency_amount", nullable = false, precision = 15, scale = 2)
+    private BigDecimal frequencyAmount;
+
     @Column(name = "deadline", nullable = true)
     private LocalDate deadline;
-
-    @OneToOne(mappedBy = "target", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Schedule schedule;
 
     @OneToMany(mappedBy = "target", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Transaction> transactions;
