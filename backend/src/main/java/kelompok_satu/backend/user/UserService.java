@@ -1,6 +1,7 @@
 package kelompok_satu.backend.user;
 
 import org.springframework.stereotype.Service;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -10,9 +11,11 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public List<User> getAllUsers() {
@@ -114,5 +117,56 @@ public class UserService {
     public void deleteUser(UUID id) {
         User user = getUserById(id);
         userRepository.delete(user);
+    }
+
+    public User registerLocalUser(String name, String username, String email, String rawPassword) {
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("Email is required");
+        }
+        if (rawPassword == null || rawPassword.isBlank()) {
+            throw new IllegalArgumentException("Password is required");
+        }
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username is required");
+        }
+
+        if (userRepository.existsByEmail(email)) {
+            throw new IllegalStateException("Email already exists");
+        }
+
+        if (userRepository.existsByUsername(username)) {
+            throw new IllegalStateException("Username already exists");
+        }
+
+        User user = User.builder()
+                .name(name)
+                .username(username)
+                .email(email)
+                .passwordHash(passwordEncoder.encode(rawPassword))
+                .isGuest(false)
+                .lastActive(LocalDateTime.now())
+                .build();
+
+        return userRepository.save(user);
+    }
+
+    public User authenticateLocalUser(String email, String rawPassword) {
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("Email is required");
+        }
+        if (rawPassword == null || rawPassword.isBlank()) {
+            throw new IllegalArgumentException("Password is required");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
+
+        if (user.getPasswordHash() == null ||
+                !passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
+            throw new IllegalArgumentException("Invalid credentials");
+        }
+
+        user.setLastActive(LocalDateTime.now());
+        return userRepository.save(user);
     }
 }

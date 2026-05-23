@@ -88,8 +88,8 @@ export const RegisterPage = () => {
       const { user } = await authService.registerUser({ name, username, email, password });
       login({ id: user.id, name: user.name, username: user.username ?? undefined, email: user.email ?? '' });
       navigate('/dashboard');
-    } catch {
-      setServerError('Pendaftaran gagal. Email atau username mungkin sudah digunakan.');
+    } catch (err) {
+      setServerError(err instanceof Error ? err.message : 'Pendaftaran gagal.');
     } finally {
       setIsLoading(false);
     }

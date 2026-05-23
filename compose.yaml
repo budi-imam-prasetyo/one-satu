@@ -24,9 +24,9 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       JWT_SECRET: ${JWT_SECRET}
     volumes:
-        - ./backend:/app
-        - /app/target
-        - maven_cache:/root/.m2
+      - ./backend:/app
+      - /app/target
+      - maven_cache:/root/.m2
 
     depends_on:
       db:

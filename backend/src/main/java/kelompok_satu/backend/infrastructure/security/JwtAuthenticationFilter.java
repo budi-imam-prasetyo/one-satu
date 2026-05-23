@@ -9,7 +9,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import kelompok_satu.backend.user.User;
 import kelompok_satu.backend.user.UserRepository;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -50,14 +49,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Claims claims = jwtService.parseClaims(token);
             String subject = claims.getSubject();
             if (subject == null) {
-                response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                filterChain.doFilter(request, response);
                 return;
             }
 
             UUID userId = UUID.fromString(subject);
             Optional<User> user = userRepository.findById(userId);
             if (user.isEmpty()) {
-                response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                filterChain.doFilter(request, response);
                 return;
             }
 
@@ -66,11 +65,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (JwtException | IllegalArgumentException ex) {
-            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+            filterChain.doFilter(request, response);
             return;
         }
 
         filterChain.doFilter(request, response);
     }
 }
-
