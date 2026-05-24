@@ -4,6 +4,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { router } from './router';
 import { AppProvider } from './store';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { Toaster } from './components/ui/sonner';
 
 export default function App() {
     return (
@@ -13,6 +14,7 @@ export default function App() {
             <AppProvider>
                 <ThemeProvider>
                     <RouterProvider router={router} />
+                    <Toaster />
                 </ThemeProvider>
             </AppProvider>
         </GoogleOAuthProvider>

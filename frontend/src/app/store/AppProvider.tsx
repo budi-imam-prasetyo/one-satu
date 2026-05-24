@@ -136,20 +136,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addTarget = async (
     targetData: Omit<Target, 'id' | 'currentAmount' | 'history' | 'estimatedDeadline' | 'status'>
   ) => {
-    // ── API call (uncomment when backend is ready) ─────────────────────────
-    // const created = await targetService.createTarget({
-    //   name: targetData.name,
-    //   image_url: targetData.image,
-    //   target_amount: targetData.targetAmount,
-    //   deadline: targetData.deadline,
-    //   schedule: {
-    //     frequency: targetData.savingSchedule,
-    //     amount: targetData.savingAmount,
-    //     is_active: targetData.reminderEnabled,
-    //   },
-    // });
-    // setTargets(prev => [mapApiTarget(created), ...prev]);
-    // ──────────────────────────────────────────────────────────────────────
+    if (user) {
+      const created = await targetService.createTarget(
+        targetData.name,
+        targetData.targetAmount,
+        targetData.savingAmount,
+        targetData.savingSchedule,
+        targetData.image,
+        targetData.deadline
+      );
+      setTargets(prev => [mapApiTarget(created), ...prev]);
+      return;
+    }
 
     const estimatedDeadline = calculateEstimatedDeadline(
       targetData.targetAmount,

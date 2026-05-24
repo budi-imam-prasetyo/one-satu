@@ -23,10 +23,14 @@ services:
 
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       JWT_SECRET: ${JWT_SECRET}
+
+      APP_UPLOAD_DIR: /app/uploads/images/
+      APP_BASE_URL: http://localhost:8080
     volumes:
-      - ./backend:/app
-      - /app/target
-      - maven_cache:/root/.m2
+        - ./backend:/app
+        - /app/target
+        - maven_cache:/root/.m2
+        - ./uploads:/app/uploads
 
     depends_on:
       db:

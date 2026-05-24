@@ -1,22 +1,19 @@
 package kelompok_satu.backend.target;
 
 import jakarta.persistence.EnumeratedValue;
-import jakarta.validation.constraints.FutureOrPresent;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.*;
 import lombok.Builder;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 
-@Builder
+//@Builder
 public record CreateTargetRequest(
 
         @NotBlank
         String title,
-
-        String imageUrl,
 
         @NotNull
         @Min(0)
@@ -27,7 +24,6 @@ public record CreateTargetRequest(
         LocalDate deadline,
 
         @NotNull
-        @EnumeratedValue()
         TargetFrequency frequency,
 
         @NotNull
