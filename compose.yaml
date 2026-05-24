@@ -21,9 +21,6 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
 
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      JWT_SECRET: ${JWT_SECRET}
-
       APP_UPLOAD_DIR: /app/uploads/images/
       APP_BASE_URL: http://localhost:8080
     volumes:

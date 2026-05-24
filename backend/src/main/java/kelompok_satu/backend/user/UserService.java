@@ -2,6 +2,9 @@ package kelompok_satu.backend.user;
 
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import kelompok_satu.backend.target.Target;
+import kelompok_satu.backend.target.TargetRepository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -12,10 +15,12 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TargetRepository targetRepository;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, TargetRepository targetRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.targetRepository = targetRepository;
     }
 
     public List<User> getAllUsers() {
@@ -25,6 +30,55 @@ public class UserService {
     public User getUserById(UUID id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    @Transactional
+    public User createOrGetGuest(String tempId) {
+        if (tempId != null && !tempId.isBlank()) {
+            User existing = userRepository.findByTempId(tempId).orElse(null);
+            if (existing != null) {
+                existing.setLastActive(LocalDateTime.now());
+                return userRepository.save(existing);
+            }
+        }
+
+        String newTempId = (tempId == null || tempId.isBlank())
+                ? UUID.randomUUID().toString()
+                : tempId;
+
+        User guest = User.builder()
+                .tempId(newTempId)
+                .isGuest(true)
+                .lastActive(LocalDateTime.now())
+                .build();
+
+        return userRepository.save(guest);
+    }
+
+    @Transactional
+    public void mergeGuestData(String tempId, User user) {
+        if (tempId == null || tempId.isBlank() || user == null || user.getId() == null) {
+            return;
+        }
+
+        User guest = userRepository.findByTempId(tempId).orElse(null);
+        if (guest == null || guest.getId().equals(user.getId())) {
+            return;
+        }
+
+        int existingCount = targetRepository.countByUserId(user.getId());
+        if (existingCount > 0) {
+            // Keep existing account data, discard guest data.
+            userRepository.delete(guest);
+            return;
+        }
+
+        List<Target> guestTargets = targetRepository.findByUserId(guest.getId());
+        for (Target target : guestTargets) {
+            target.setUser(user);
+        }
+        targetRepository.saveAll(guestTargets);
+        userRepository.delete(guest);
     }
 
     public User createUser(User user) {
@@ -57,7 +111,7 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    public User upsertGoogleUser(String googleId, String name, String email) {
+    public User upsertGoogleUser(String googleId, String name, String email, String tempId) {
         User user = null;
 
         if (googleId != null && !googleId.isBlank()) {
@@ -78,7 +132,9 @@ public class UserService {
                     .isGuest(false)
                     .lastActive(LocalDateTime.now())
                     .build();
-            return userRepository.save(user);
+            User created = userRepository.save(user);
+            mergeGuestData(tempId, created);
+            return created;
         }
 
         if (googleId != null && !googleId.isBlank()) {
@@ -96,7 +152,9 @@ public class UserService {
         user.setGuest(false);
         user.setLastActive(LocalDateTime.now());
 
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        mergeGuestData(tempId, saved);
+        return saved;
     }
 
     private String generateUniqueUsername(String email) {

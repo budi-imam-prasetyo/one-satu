@@ -21,6 +21,13 @@ public class AuthController {
         this.jwtService = jwtService;
     }
 
+    @PostMapping("/guest")
+    public AuthResponse guest(@RequestBody GuestRequest body) {
+        User user = userService.createOrGetGuest(body.tempId());
+        String accessToken = jwtService.generateAccessToken(user);
+        return new AuthResponse(accessToken, null, user);
+    }
+
     @PostMapping("/google")
     public AuthResponse googleLogin(
             @RequestBody GoogleLoginRequest body
@@ -28,7 +35,8 @@ public class AuthController {
         User user = userService.upsertGoogleUser(
                 body.googleId(),
                 body.name(),
-                body.email()
+                body.email(),
+                body.tempId()
         );
 
         String accessToken = jwtService.generateAccessToken(user);
@@ -45,6 +53,7 @@ public class AuthController {
                     body.email(),
                     body.password()
             );
+            userService.mergeGuestData(body.tempId(), user);
             String accessToken = jwtService.generateAccessToken(user);
             return new AuthResponse(accessToken, null, user);
         } catch (IllegalStateException ex) {
@@ -61,6 +70,7 @@ public class AuthController {
                     body.email(),
                     body.password()
             );
+            userService.mergeGuestData(body.tempId(), user);
             String accessToken = jwtService.generateAccessToken(user);
             return new AuthResponse(accessToken, null, user);
         } catch (IllegalArgumentException ex) {
@@ -72,13 +82,20 @@ public class AuthController {
             String googleId,
             String name,
             String email,
-            String picture
+            String picture,
+            String tempId
+    ) {
+    }
+
+    public record GuestRequest(
+            String tempId
     ) {
     }
 
     public record LoginRequest(
             String email,
-            String password
+            String password,
+            String tempId
     ) {
     }
 
@@ -86,7 +103,8 @@ public class AuthController {
             String name,
             String username,
             String email,
-            String password
+            String password,
+            String tempId
     ) {
     }
 

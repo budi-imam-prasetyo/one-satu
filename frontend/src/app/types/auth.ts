@@ -15,6 +15,7 @@ export interface ApiUser {
 export interface LoginRequest {
   email: string;
   password: string;
+  tempId?: string | null;
 }
 
 export interface RegisterRequest {
@@ -22,6 +23,11 @@ export interface RegisterRequest {
   username: string;
   email: string;
   password: string;
+  tempId?: string | null;
+}
+
+export interface GuestRequest {
+  tempId?: string | null;
 }
 
 export interface AuthResponse {
