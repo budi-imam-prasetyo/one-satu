@@ -7,8 +7,7 @@ import java.util.UUID;
 public record TargetResponse(
         UUID id,
         UUID userId,
-        String name,
-//        String description,
+        String title,
         String imageUrl,
         TargetStatus status,
         BigDecimal targetAmount,
