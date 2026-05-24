@@ -7,17 +7,28 @@ import { formatThousand, parseThousand, formatRupiah } from '../utils/formatNumb
 import { calculateEstimatedDeadline, scheduleLabel } from '../utils/calculations';
 import { ImageUpload } from '../components/ui/ImageUpload';
 import { ScheduleSelector } from '../components/ui/ScheduleSelector';
+import { fetchTargetDetail, fetchTargetTransactions } from '../services/targetService';
+import { TargetDetailResponse, TransactionResponse } from '../types/target';
 
 export const TargetDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { targets, updateTarget, deleteTarget, user, editTarget, isLoading } = useAppContext();
 
-  const target = targets.find(t => t.id === id);
+  const localTarget = targets.find(t => t.id === id);
+
+  const [detail, setDetail] = useState<TargetDetailResponse | null>(null);
+  const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
+  const [txPage, setTxPage] = useState(0);
+  const [txTotalPages, setTxTotalPages] = useState(1);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const [isLoadingTx, setIsLoadingTx] = useState(false);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [isUpdatingTarget, setIsUpdatingTarget] = useState(false);
+  const [showUpdateSuccess, setShowUpdateSuccess] = useState(false);
   const [amountInput, setAmountInput] = useState('');
   const [transactionType, setTransactionType] = useState<'deposit' | 'withdraw'>('deposit');
 
@@ -30,16 +41,90 @@ export const TargetDetail = () => {
   const [editImage, setEditImage] = useState('');
 
   React.useEffect(() => {
-    if (!isLoading && !user && !target?.isGuest) {
+    if (!id || !user) return;
+    setTxPage(0);
+  }, [id, user]);
+
+  React.useEffect(() => {
+    if (!id || !user) return;
+    let cancelled = false;
+    const loadDetail = async () => {
+      setIsLoadingDetail(true);
+      try {
+        const data = await fetchTargetDetail(id);
+        if (!cancelled) setDetail(data);
+      } catch (err) {
+        console.error('Failed to load target detail:', err);
+        if (!cancelled) setDetail(null);
+      } finally {
+        if (!cancelled) setIsLoadingDetail(false);
+      }
+    };
+    loadDetail();
+    return () => { cancelled = true; };
+  }, [id, user]);
+
+  React.useEffect(() => {
+    if (!id || !user) return;
+    let cancelled = false;
+    const loadTransactions = async () => {
+      setIsLoadingTx(true);
+      try {
+        const page = await fetchTargetTransactions(id, txPage, 10);
+        if (cancelled) return;
+        setTransactions(page.content);
+        setTxTotalPages(page.totalPages || 1);
+      } catch (err) {
+        console.error('Failed to load transactions:', err);
+        if (!cancelled) {
+          setTransactions([]);
+          setTxTotalPages(1);
+        }
+      } finally {
+        if (!cancelled) setIsLoadingTx(false);
+      }
+    };
+    loadTransactions();
+    return () => { cancelled = true; };
+  }, [id, user, txPage]);
+
+  const targetView = user
+    ? (detail ? {
+      id: detail.id,
+      name: detail.title,
+      targetAmount: detail.targetAmount,
+      currentAmount: detail.currentAmount,
+      savingAmount: detail.frequencyAmount,
+      savingSchedule: detail.frequency.toLowerCase() as 'daily' | 'weekly' | 'monthly',
+      reminderEnabled: localTarget?.reminderEnabled ?? false,
+      reminderTime: localTarget?.reminderTime,
+      status: detail.status.toLowerCase() as 'active' | 'paused' | 'completed',
+      deadline: detail.deadline ?? undefined,
+      image: detail.imageUrl ?? undefined,
+      isGuest: false,
+    } : null)
+    : (localTarget ?? null);
+
+  const txView = user
+    ? transactions.map(tx => ({
+      id: tx.id,
+      date: tx.createdAt,
+      amount: tx.amount,
+      type: tx.type === 'DEPOSIT' ? 'deposit' : 'withdraw',
+    }))
+    : (localTarget?.history ?? []);
+
+  React.useEffect(() => {
+    if (!isLoading && !user && !targetView?.isGuest) {
       navigate('/login');
     }
-  }, [user, target, isLoading, navigate]);
+  }, [user, targetView, isLoading, navigate]);
 
-  if (!isLoading && !user && !target?.isGuest) {
+  if (!isLoading && !user && !targetView?.isGuest) {
     return null;
   }
 
-  if (isLoading && !target) {
+  if ((user ? isLoadingDetail : isLoading) && !targetView) {
     return (
       <div className="flex-1 bg-neutral-100 dark:bg-neutral-950 min-h-screen animate-pulse">
         <div className="bg-white/80 dark:bg-neutral-950/80 backdrop-blur-xl sticky top-0 z-40 border-b border-neutral-200/50 dark:border-neutral-800/50">
@@ -80,7 +165,7 @@ export const TargetDetail = () => {
     );
   }
 
-  if (!target) {
+  if (!targetView) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-neutral-100 dark:bg-neutral-950 text-neutral-900 dark:text-white min-h-screen">
         <AlertCircle className="w-16 h-16 text-neutral-400 dark:text-neutral-600 mb-4" />
@@ -93,10 +178,14 @@ export const TargetDetail = () => {
     );
   }
 
-  const percentage = Math.min(100, Math.round((target.currentAmount / target.targetAmount) * 100));
-  const remaining = Math.max(0, target.targetAmount - target.currentAmount);
-  const periodsNeeded = target.savingAmount > 0 ? Math.ceil(remaining / target.savingAmount) : 0;
-  const isCompleted = target.currentAmount >= target.targetAmount;
+  const percentage = user && detail
+    ? detail.progressPercent
+    : Math.min(100, Math.round((targetView.currentAmount / targetView.targetAmount) * 100));
+  const remaining = user && detail
+    ? detail.remainingAmount
+    : Math.max(0, targetView.targetAmount - targetView.currentAmount);
+  const periodsNeeded = targetView.savingAmount > 0 ? Math.ceil(remaining / targetView.savingAmount) : 0;
+  const isCompleted = targetView.currentAmount >= targetView.targetAmount;
 
   const editEstimatedDeadline = (() => {
     const ta = parseThousand(editTargetAmount);
@@ -108,46 +197,85 @@ export const TargetDetail = () => {
 
   const handleTransaction = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!targetView) return;
     const amount = parseThousand(amountInput);
     if (!amount || amount <= 0) return;
-    if (transactionType === 'withdraw' && amount > target.currentAmount) {
+    if (transactionType === 'withdraw' && amount > targetView.currentAmount) {
       alert('Saldo tidak mencukupi untuk ditarik.');
       return;
     }
-    updateTarget(target.id, amount, transactionType);
+    updateTarget(targetView.id, amount, transactionType);
+
+    if (user && detail) {
+      const newAmount = transactionType === 'deposit'
+        ? detail.currentAmount + amount
+        : detail.currentAmount - amount;
+      const newRemaining = Math.max(0, detail.targetAmount - newAmount);
+      const newPercentage = Math.min(100, Math.round((newAmount / detail.targetAmount) * 100));
+
+      setDetail({
+        ...detail,
+        currentAmount: newAmount,
+        remainingAmount: newRemaining,
+        progressPercent: newPercentage,
+      });
+
+      if (txPage === 0) {
+        setTransactions(prev => [{
+          id: `tx-${Date.now()}`,
+          type: transactionType === 'deposit' ? 'DEPOSIT' : 'WITHDRAW',
+          amount,
+          note: null,
+          createdAt: new Date().toISOString(),
+        }, ...prev].slice(0, 10));
+      }
+    }
+
     setAmountInput('');
     setShowTransactionModal(false);
   };
 
   const handleDelete = () => {
-    deleteTarget(target.id);
+    if (!targetView) return;
+    deleteTarget(targetView.id);
     navigate('/dashboard');
   };
 
   const handleOpenEdit = () => {
-    setEditName(target.name);
-    setEditTargetAmount(formatThousand(target.targetAmount.toString()));
-    setEditSavingAmount(formatThousand(target.savingAmount.toString()));
-    setEditSavingSchedule(target.savingSchedule);
-    setEditReminderEnabled(target.reminderEnabled);
-    setEditReminderTime(target.reminderTime ?? '08:00');
-    setEditImage(target.image || '');
+    setEditName(targetView.name);
+    setEditTargetAmount(formatThousand(targetView.targetAmount.toString()));
+    setEditSavingAmount(formatThousand(targetView.savingAmount.toString()));
+    setEditSavingSchedule(targetView.savingSchedule);
+    setEditReminderEnabled(targetView.reminderEnabled);
+    setEditReminderTime(targetView.reminderTime ?? '08:00');
+    setEditImage(targetView.image || '');
     setShowEditModal(true);
   };
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editName || !editTargetAmount || !editSavingAmount) return;
-    editTarget(target.id, {
-      name: editName,
-      targetAmount: parseThousand(editTargetAmount),
-      savingAmount: parseThousand(editSavingAmount),
-      savingSchedule: editSavingSchedule,
-      reminderEnabled: editReminderEnabled,
-      reminderTime: editReminderEnabled ? editReminderTime : undefined,
-      image: editImage || undefined,
-    });
-    setShowEditModal(false);
+    if (!editName || !editTargetAmount || !editSavingAmount || !targetView) return;
+    setIsUpdatingTarget(true);
+    try {
+      await editTarget(targetView.id, {
+        name: editName,
+        targetAmount: parseThousand(editTargetAmount),
+        savingAmount: parseThousand(editSavingAmount),
+        savingSchedule: editSavingSchedule,
+        reminderEnabled: editReminderEnabled,
+        reminderTime: editReminderEnabled ? editReminderTime : undefined,
+        image: editImage || undefined,
+        originalImage: targetView.image,
+      });
+      if (user) {
+        const refreshed = await fetchTargetDetail(targetView.id);
+        setDetail(refreshed);
+      }
+      setShowEditModal(false);
+      setShowUpdateSuccess(true);
+    } finally {
+      setIsUpdatingTarget(false);
+    }
   };
 
   return (
@@ -159,7 +287,7 @@ export const TargetDetail = () => {
             <button onClick={() => navigate('/dashboard')} className="p-2 -ml-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full transition-colors text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white">
               <ArrowLeft className="w-6 h-6" />
             </button>
-            <h1 className="text-xl sm:text-2xl font-bold truncate tracking-tight text-neutral-900 dark:text-white">{target.name}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold truncate tracking-tight text-neutral-900 dark:text-white">{targetView.name}</h1>
           </div>
           <div className="flex gap-2">
             <button onClick={handleOpenEdit} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full transition-colors" title="Edit Target">
@@ -184,10 +312,10 @@ export const TargetDetail = () => {
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               className="w-full h-56 sm:h-72 lg:h-80 bg-neutral-200 dark:bg-neutral-900 rounded-3xl overflow-hidden shadow-2xl relative group border border-neutral-200 dark:border-neutral-800/50"
             >
-              {target.image ? (
+              {targetView.image ? (
                 <>
                   <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/80 via-transparent to-transparent z-10" />
-                  <img src={target.image} alt={target.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  <img src={targetView.image} alt={targetView.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                 </>
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-200 dark:bg-neutral-900 z-10">
@@ -216,14 +344,14 @@ export const TargetDetail = () => {
               <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-8 mb-8">
                 <div className="text-center sm:text-left flex-1">
                   <p className="text-neutral-500 dark:text-neutral-400 font-medium mb-1 uppercase tracking-wider text-sm">Target Dana</p>
-                  <h2 className="text-4xl sm:text-5xl font-black text-neutral-900 dark:text-white tracking-tight">Rp{formatRupiah(target.targetAmount)}</h2>
+                  <h2 className="text-4xl sm:text-5xl font-black text-neutral-900 dark:text-white tracking-tight">Rp{formatRupiah(targetView.targetAmount)}</h2>
                   <div className="mt-4 flex flex-wrap items-center justify-center sm:justify-start gap-3">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-neutral-100 dark:bg-neutral-800 text-emerald-600 dark:text-emerald-400 text-sm font-semibold border border-neutral-200 dark:border-neutral-700/50">
-                      Rp{formatRupiah(target.savingAmount)} / {scheduleLabel(target.savingSchedule)}
+                      Rp{formatRupiah(targetView.savingAmount)} / {scheduleLabel(targetView.savingSchedule)}
                     </span>
-                    {target.reminderEnabled && target.reminderTime && (
+                    {targetView.reminderEnabled && targetView.reminderTime && (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-sm font-medium border border-emerald-200 dark:border-emerald-800/50">
-                        <Bell className="w-3.5 h-3.5" /> Pukul {target.reminderTime}
+                        <Bell className="w-3.5 h-3.5" /> Pukul {targetView.reminderTime}
                       </span>
                     )}
                   </div>
@@ -263,7 +391,7 @@ export const TargetDetail = () => {
                     <span className="text-xs sm:text-sm font-medium">Estimasi Selesai</span>
                   </div>
                   <span className="font-semibold text-neutral-800 dark:text-neutral-200">
-                    {isCompleted ? '-' : `${periodsNeeded} ${scheduleLabel(target.savingSchedule)} Lagi`}
+                    {isCompleted ? '-' : `${periodsNeeded} ${scheduleLabel(targetView.savingSchedule)} Lagi`}
                   </span>
                 </div>
               </div>
@@ -273,7 +401,7 @@ export const TargetDetail = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:hidden">
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white dark:bg-neutral-900 rounded-3xl p-5 border border-neutral-200 dark:border-neutral-800/50 flex flex-col justify-center">
                 <p className="text-neutral-500 dark:text-neutral-400 text-sm font-medium mb-1">Total Terkumpul</p>
-                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">Rp{formatRupiah(target.currentAmount)}</p>
+                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">Rp{formatRupiah(targetView.currentAmount)}</p>
               </motion.div>
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-white dark:bg-neutral-900 rounded-3xl p-5 border border-neutral-200 dark:border-neutral-800/50 flex flex-col justify-center">
                 <p className="text-neutral-500 dark:text-neutral-400 text-sm font-medium mb-1">Sisa Kekurangan</p>
@@ -284,20 +412,20 @@ export const TargetDetail = () => {
             {/* Reminder */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-white dark:bg-neutral-900 rounded-3xl p-5 sm:p-6 border border-neutral-200 dark:border-neutral-800/50 flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${target.reminderEnabled ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500'}`}>
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${targetView.reminderEnabled ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500'}`}>
                   <Bell className="w-6 h-6" />
                 </div>
                 <div>
                   <p className="text-lg font-bold text-neutral-900 dark:text-white">Pengingat Menabung</p>
                   <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                    {target.reminderEnabled
-                      ? `Aktif setiap ${scheduleLabel(target.savingSchedule).toLowerCase()}${target.reminderTime ? ` pukul ${target.reminderTime}` : ''}`
+                    {targetView.reminderEnabled
+                      ? `Aktif setiap ${scheduleLabel(targetView.savingSchedule).toLowerCase()}${targetView.reminderTime ? ` pukul ${targetView.reminderTime}` : ''}`
                       : 'Tidak aktif'}
                   </p>
                 </div>
               </div>
-              <div className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${target.reminderEnabled ? 'bg-emerald-500' : 'bg-neutral-300 dark:bg-neutral-700'}`}>
-                <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-sm transition-transform ${target.reminderEnabled ? 'translate-x-7' : 'translate-x-1'}`} />
+              <div className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${targetView.reminderEnabled ? 'bg-emerald-500' : 'bg-neutral-300 dark:bg-neutral-700'}`}>
+                <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-sm transition-transform ${targetView.reminderEnabled ? 'translate-x-7' : 'translate-x-1'}`} />
               </div>
             </motion.div>
           </div>
@@ -308,7 +436,7 @@ export const TargetDetail = () => {
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="bg-white dark:bg-neutral-900 rounded-3xl p-5 border border-neutral-200 dark:border-neutral-800/50 flex flex-col justify-center relative overflow-hidden">
                 <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl" />
                 <p className="text-neutral-500 dark:text-neutral-400 text-sm font-medium mb-1 relative z-10">Terkumpul</p>
-                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 relative z-10">Rp{formatRupiah(target.currentAmount)}</p>
+                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 relative z-10">Rp{formatRupiah(targetView.currentAmount)}</p>
               </motion.div>
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="bg-white dark:bg-neutral-900 rounded-3xl p-5 border border-neutral-200 dark:border-neutral-800/50 flex flex-col justify-center relative overflow-hidden">
                 <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-red-500/5 rounded-full blur-2xl" />
@@ -323,7 +451,11 @@ export const TargetDetail = () => {
                 <h3 className="text-lg font-bold text-neutral-900 dark:text-white">Riwayat Transaksi</h3>
               </div>
               <div className="p-4 sm:p-6 space-y-4 overflow-y-auto max-h-[400px] lg:max-h-[600px] custom-scrollbar">
-                {target.history.length === 0 ? (
+                {isLoadingTx && user ? (
+                  <div className="h-full min-h-[200px] flex flex-col items-center justify-center text-center">
+                    <p className="text-neutral-500 dark:text-neutral-500 text-sm">Memuat transaksi...</p>
+                  </div>
+                ) : txView.length === 0 ? (
                   <div className="h-full min-h-[200px] flex flex-col items-center justify-center text-center">
                     <div className="w-16 h-16 bg-neutral-100 dark:bg-neutral-800 rounded-full flex items-center justify-center mb-4">
                       <TrendingUp className="w-8 h-8 text-neutral-400 dark:text-neutral-600" />
@@ -332,7 +464,7 @@ export const TargetDetail = () => {
                     <p className="text-neutral-500 dark:text-neutral-500 text-sm mt-1">Mulai menabung untuk melihat riwayat di sini.</p>
                   </div>
                 ) : (
-                  target.history.slice().reverse().map((tx, index) => (
+                  txView.slice().map((tx, index) => (
                     <motion.div
                       key={tx.id}
                       initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 * Math.min(index, 5) }}
@@ -356,6 +488,25 @@ export const TargetDetail = () => {
                   ))
                 )}
               </div>
+              {user && txTotalPages > 1 && (
+                <div className="px-4 sm:px-6 py-4 border-t border-neutral-200 dark:border-neutral-800/80 flex items-center justify-between text-sm">
+                  <button
+                    onClick={() => setTxPage(p => Math.max(0, p - 1))}
+                    disabled={txPage === 0}
+                    className="px-3 py-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 disabled:opacity-50"
+                  >
+                    Sebelumnya
+                  </button>
+                  <span className="text-neutral-500 dark:text-neutral-400">Halaman {txPage + 1} dari {txTotalPages}</span>
+                  <button
+                    onClick={() => setTxPage(p => Math.min(txTotalPages - 1, p + 1))}
+                    disabled={txPage >= txTotalPages - 1}
+                    className="px-3 py-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 disabled:opacity-50"
+                  >
+                    Berikutnya
+                  </button>
+                </div>
+              )}
             </motion.div>
           </div>
         </div>
@@ -415,12 +566,12 @@ export const TargetDetail = () => {
                   </div>
                   {transactionType === 'withdraw' && (
                     <p className="mt-2 text-xs text-neutral-500 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" /> Saldo maksimal: Rp{formatRupiah(target.currentAmount)}
+                      <AlertCircle className="w-3 h-3" /> Saldo maksimal: Rp{formatRupiah(targetView.currentAmount)}
                     </p>
                   )}
                   {transactionType === 'deposit' && (
                     <div className="mt-3 flex gap-2 overflow-x-auto pb-1 custom-scrollbar">
-                      {[...new Set([10000, 50000, 100000, target.savingAmount])].filter(v => v > 0).map(val => (
+                      {[...new Set([10000, 50000, 100000, targetView.savingAmount])].filter(v => v > 0).map(val => (
                         <button
                           key={val} type="button"
                           onClick={() => setAmountInput(formatThousand(val.toString()))}
@@ -454,7 +605,7 @@ export const TargetDetail = () => {
                 <Trash2 className="w-10 h-10" />
               </div>
               <h3 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">Hapus Target?</h3>
-              <p className="text-neutral-500 dark:text-neutral-400 mb-8">Target <span className="text-neutral-900 dark:text-white font-medium">"{target.name}"</span> beserta riwayatnya akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.</p>
+              <p className="text-neutral-500 dark:text-neutral-400 mb-8">Target <span className="text-neutral-900 dark:text-white font-medium">"{targetView.name}"</span> beserta riwayatnya akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.</p>
               <div className="flex gap-3">
                 <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-3 rounded-xl font-bold bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors">Batal</button>
                 <button onClick={handleDelete} className="flex-1 py-3 rounded-xl font-bold bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all">Ya, Hapus</button>
@@ -605,8 +756,35 @@ export const TargetDetail = () => {
 
               <div className="p-6 border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shrink-0 flex gap-3">
                 <button type="button" onClick={() => setShowEditModal(false)} className="flex-1 py-3.5 rounded-2xl font-bold bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors">Batal</button>
-                <button type="submit" form="edit-form" className="flex-[2] py-3.5 rounded-2xl font-bold text-neutral-950 bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 transition-all">Simpan Perubahan</button>
+                <button
+                  type="submit"
+                  form="edit-form"
+                  disabled={isUpdatingTarget}
+                  className="flex-[2] py-3.5 rounded-2xl font-bold text-neutral-950 bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-60"
+                >
+                  {isUpdatingTarget ? 'Menyimpan...' : 'Simpan Perubahan'}
+                </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Update Success Modal */}
+      <AnimatePresence>
+        {showUpdateSuccess && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm" onClick={() => setShowUpdateSuccess(false)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center"
+            >
+              <div className="w-20 h-20 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle2 className="w-10 h-10" />
+              </div>
+              <h3 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">Perubahan Disimpan</h3>
+              <p className="text-neutral-500 dark:text-neutral-400 mb-8">Target berhasil diperbarui.</p>
+              <button onClick={() => setShowUpdateSuccess(false)} className="w-full py-3 rounded-xl font-bold bg-emerald-500 text-neutral-950 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 transition-all">Tutup</button>
             </motion.div>
           </div>
         )}

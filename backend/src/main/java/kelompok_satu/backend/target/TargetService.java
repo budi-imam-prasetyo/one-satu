@@ -18,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -81,6 +82,18 @@ public class TargetService {
         return new DashboardStats(totalSavings, totalTargets, totalCompleted);
     }
 
+    public TargetDetailResponse getDetail(User principal, UUID targetId) {
+        if (principal == null || principal.getId() == null) {
+            throw new RuntimeException("Unauthorized");
+        }
+
+        Target target = targetRepository.findByIdAndUserId(targetId, principal.getId())
+                .orElseThrow(() -> new RuntimeException("Target not found"));
+
+        return toDetailResponse(target);
+    }
+
+
 
     @Transactional
     public TargetResponse create(User principal, CreateTargetRequest request, MultipartFile image) throws IOException {
@@ -122,15 +135,50 @@ public class TargetService {
         return toResponse(target);
     }
 
+    public TargetDetailResponse update(User principal, UUID targetId,
+                                       UpdateTargetRequest request,
+                                       MultipartFile image) throws IOException {
+        Target target = targetRepository.findByIdAndUserId(targetId, principal.getId())
+                .orElseThrow(() -> new RuntimeException("Target not found"));
+
+        target.setTitle(request.title().trim());
+        target.setTargetAmount(request.targetAmount());
+        target.setDeadline(request.deadline());
+        target.setFrequency(request.frequency());
+        target.setFrequencyAmount(request.frequencyAmount());
+        target.setStatus(TargetStatus.ACTIVE);
+
+        // update image
+        if(target.getImageUrl() != null) {
+            if (image != null && !image.isEmpty()) {
+                // User upload image baru → hapus lama, simpan baru
+                deleteOldImage(target.getImageUrl());
+                validateImage(image);
+                target.setImageUrl(saveImage(image));
+            } else if (request.imageUrl() != null) {
+                // User tidak ubah image → pakai URL lama
+                target.setImageUrl(request.imageUrl());
+            } else {
+                // User hapus image → set null
+                deleteOldImage(target.getImageUrl());
+                target.setImageUrl(null);
+            }
+        }
+
+
+        targetRepository.save(target);
+        return toDetailResponse(target);
+    }
+
     public void validateImage(MultipartFile image) {
         if (image == null || image.isEmpty()) return; // opsional, skip jika null
 
         if (image.getSize() > MAX_SIZE) {
-            throw new IllegalArgumentException("Ukuran gambar maksimal 5MB");
+            throw new IllegalArgumentException("Maximum size of image is 5MB");
         }
 
         if (!ALLOWED_TYPES.contains(image.getContentType())) {
-            throw new IllegalArgumentException("Format harus PNG atau JPEG");
+            throw new IllegalArgumentException("File format must be PNG, jpg/jpeg");
         }
     }
 
@@ -162,6 +210,29 @@ public class TargetService {
         return fullUrl;
     }
 
+    public void deleteOldImage(String imageUrl) {
+        if (imageUrl == null || imageUrl.isBlank()) return;
+
+        try {
+            String filename = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
+            Path oldFile = Paths.get(uploadDir).resolve(filename);
+            Files.deleteIfExists(oldFile);
+            log.info("Old image deleted: {}", filename);
+        } catch (IOException e) {
+            log.warn("Failed delete old image: {}", e.getMessage());
+        }
+    }
+
+    @Transactional
+    public void delete(User principal, UUID targetId) {
+        Target target = targetRepository.findByIdAndUserId(targetId, principal.getId())
+                .orElseThrow(()->new RuntimeException("Target not found"));
+
+        deleteOldImage(target.getImageUrl());
+
+        targetRepository.delete(target);
+    }
+
     private TargetResponse toResponse(Target target) {
 
         return new TargetResponse(
@@ -172,6 +243,34 @@ public class TargetService {
                 target.getStatus(),
                 target.getTargetAmount(),
                 target.getCurrentAmount(),
+                target.getFrequency(),
+                target.getFrequencyAmount(),
+                target.getDeadline()
+        );
+    }
+
+    private TargetDetailResponse toDetailResponse(Target target) {
+        BigDecimal remaining = target.getTargetAmount()
+                .subtract(target.getCurrentAmount())
+                .max(BigDecimal.ZERO);
+
+        int progress = target.getTargetAmount().compareTo(BigDecimal.ZERO) == 0 ? 0
+                : target.getCurrentAmount()
+                  .multiply(BigDecimal.valueOf(100))
+                  .divide(target.getTargetAmount(), 0, RoundingMode.FLOOR)
+                  .min(BigDecimal.valueOf(100))
+                  .intValue();
+
+        return new TargetDetailResponse(
+                target.getId(),
+                target.getUser().getId(),
+                target.getTitle(),
+                target.getImageUrl(),
+                target.getStatus(),
+                target.getTargetAmount(),
+                target.getCurrentAmount(),
+                remaining,
+                progress,
                 target.getFrequency(),
                 target.getFrequencyAmount(),
                 target.getDeadline()

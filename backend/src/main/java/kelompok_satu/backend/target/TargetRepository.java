@@ -6,6 +6,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface TargetRepository extends JpaRepository<Target, UUID> {
@@ -19,4 +20,6 @@ public interface TargetRepository extends JpaRepository<Target, UUID> {
 
     @Query("SELECT COALESCE(SUM(t.currentAmount), 0) FROM Target t WHERE t.user.id = :userId")
     BigDecimal sumCurrentAmountByUserId(@Param("userId") UUID userId);
+
+    Optional<Target> findByIdAndUserId(UUID id, UUID userId);
 }

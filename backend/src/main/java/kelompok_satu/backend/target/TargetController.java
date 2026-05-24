@@ -10,6 +10,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/targets")
@@ -35,6 +36,15 @@ public class TargetController {
         return WebResponse.<DashboardStats>builder().data(stats).build();
     }
 
+    @GetMapping("/{id}")
+    public WebResponse<TargetDetailResponse> getDetail(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID id
+    ) {
+        TargetDetailResponse response = targetService.getDetail(user, id);
+        return WebResponse.<TargetDetailResponse>builder().data(response).build();
+    }
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public WebResponse<TargetResponse> createTarget(
             @AuthenticationPrincipal User user,
@@ -43,5 +53,25 @@ public class TargetController {
     ) throws IOException {
         TargetResponse response = targetService.create(user, request, image);
         return WebResponse.<TargetResponse>builder().data(response).build();
+    }
+
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public WebResponse<TargetDetailResponse> update(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID id,
+            @ModelAttribute UpdateTargetRequest request,
+            @RequestParam(value = "image", required = false) MultipartFile image
+    ) throws IOException{
+        TargetDetailResponse response = targetService.update(user, id, request, image);
+        return WebResponse.<TargetDetailResponse>builder().data(response).build();
+    }
+
+    @DeleteMapping("/{id}")
+    public WebResponse<String> delete(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID id
+    ){
+        targetService.delete(user, id);
+        return WebResponse.<String>builder().data("Successfully delete target").build();
     }
 }
