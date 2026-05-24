@@ -52,6 +52,35 @@ public class TargetService {
             "image/png", "image/jpeg"
     );
 
+    @Transactional
+    public List<TargetResponse> findByUserId(User principal, TargetStatus status) {
+        if (principal == null || principal.getId() == null) {
+            throw new RuntimeException("Unauthorized");
+        }
+
+        List<Target> targets = (status != null) ?
+                targetRepository.findByUserIdAndStatus(principal.getId(), status) :
+                targetRepository.findByUserId(principal.getId());
+
+        return targets.stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    public DashboardStats getDashboardStats(User principal) {
+        if (principal == null || principal.getId() == null) {
+            throw new RuntimeException("Unauthorized");
+        }
+
+        UUID userId = principal.getId();
+
+        BigDecimal totalSavings = targetRepository.sumCurrentAmountByUserId(userId);
+        int totalTargets = targetRepository.countByUserId(userId);
+        int totalCompleted = targetRepository.countByUserIdAndStatus(userId, TargetStatus.COMPLETED);
+
+        return new DashboardStats(totalSavings, totalTargets, totalCompleted);
+    }
+
 
     @Transactional
     public TargetResponse create(User principal, CreateTargetRequest request, MultipartFile image) throws IOException {

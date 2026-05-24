@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as targetService from '../services/targetService';
-import { ApiTarget } from '../types/target';
+import { ApiTarget, TargetResponse } from '../types/target';
 import { calculateEstimatedDeadline } from '../utils/calculations';
 
 // ─── App-layer types (camelCase, used throughout UI) ──────────────────────
@@ -90,6 +90,29 @@ const mapApiTarget = (t: ApiTarget): Target => ({
   })),
 });
 
+const mapTargetResponse = (t: TargetResponse): Target => {
+  const savingSchedule = t.frequency.toLowerCase() as 'daily' | 'weekly' | 'monthly';
+  return {
+    id: t.id,
+    name: t.title,
+    targetAmount: t.targetAmount,
+    currentAmount: t.currentAmount,
+    savingAmount: t.frequencyAmount,
+    savingSchedule,
+    estimatedDeadline: calculateEstimatedDeadline(
+      t.targetAmount,
+      t.frequencyAmount,
+      savingSchedule
+    ),
+    reminderEnabled: false,
+    status: t.status.toLowerCase() as 'active' | 'paused' | 'completed',
+    deadline: t.deadline ?? undefined,
+    image: t.imageUrl ?? undefined,
+    isGuest: false,
+    history: [],
+  };
+};
+
 export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -114,7 +137,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setIsLoading(true);
       try {
         const apiTargets = await targetService.fetchTargets();
-        setTargets(apiTargets.map(mapApiTarget));
+        setTargets(apiTargets.map(mapTargetResponse));
       } catch (err) {
         console.error('Failed to load targets:', err);
       } finally {

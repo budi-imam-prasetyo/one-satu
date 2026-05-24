@@ -32,7 +32,7 @@ export interface ApiTarget {
   id: string;
   user_id: string;
   name: string;
-  description: string | null;
+  // description: string | null;
   image_url: string | null;
   status: 'active' | 'paused' | 'completed';
   target_amount: number;
@@ -40,8 +40,30 @@ export interface ApiTarget {
   deadline: string | null;
   created_at: string;
   updated_at: string;
-  schedule: ApiSchedule | null;
+  // schedule: ApiSchedule | null;
   transactions: ApiTransaction[];
+}
+
+export type TargetStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED';
+export type TargetFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY';
+
+export interface TargetResponse {
+  id: string;
+  userId: string;
+  title: string;
+  imageUrl: string | null;
+  status: TargetStatus;
+  targetAmount: number;
+  currentAmount: number;
+  frequency: TargetFrequency;
+  frequencyAmount: number;
+  deadline: string | null;
+}
+
+export interface DashboardStats {
+  totalSavings: number;
+  totalTargets: number;
+  totalCompleted: number;
 }
 
 // ─── Request Body Types ────────────────────────────────────────────────────
