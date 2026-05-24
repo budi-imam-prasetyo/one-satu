@@ -10,6 +10,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/targets")
@@ -33,6 +34,15 @@ public class TargetController {
     ) {
         DashboardStats stats = targetService.getDashboardStats(user);
         return WebResponse.<DashboardStats>builder().data(stats).build();
+    }
+
+    @GetMapping("/{id}")
+    public WebResponse<TargetDetailResponse> getDetail(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID id
+    ) {
+        TargetDetailResponse response = targetService.getDetail(user, id);
+        return WebResponse.<TargetDetailResponse>builder().data(response).build();
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

@@ -18,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -80,6 +81,18 @@ public class TargetService {
 
         return new DashboardStats(totalSavings, totalTargets, totalCompleted);
     }
+
+    public TargetDetailResponse getDetail(User principal, UUID targetId) {
+        if (principal == null || principal.getId() == null) {
+            throw new RuntimeException("Unauthorized");
+        }
+
+        Target target = targetRepository.findByIdAndUserId(targetId, principal.getId())
+                .orElseThrow(() -> new RuntimeException("Target tidak ditemukan"));
+
+        return toDetailResponse(target);
+    }
+
 
 
     @Transactional
@@ -172,6 +185,34 @@ public class TargetService {
                 target.getStatus(),
                 target.getTargetAmount(),
                 target.getCurrentAmount(),
+                target.getFrequency(),
+                target.getFrequencyAmount(),
+                target.getDeadline()
+        );
+    }
+
+    private TargetDetailResponse toDetailResponse(Target target) {
+        BigDecimal remaining = target.getTargetAmount()
+                .subtract(target.getCurrentAmount())
+                .max(BigDecimal.ZERO);
+
+        int progress = target.getTargetAmount().compareTo(BigDecimal.ZERO) == 0 ? 0
+                : target.getCurrentAmount()
+                  .multiply(BigDecimal.valueOf(100))
+                  .divide(target.getTargetAmount(), 0, RoundingMode.FLOOR)
+                  .min(BigDecimal.valueOf(100))
+                  .intValue();
+
+        return new TargetDetailResponse(
+                target.getId(),
+                target.getUser().getId(),
+                target.getTitle(),
+                target.getImageUrl(),
+                target.getStatus(),
+                target.getTargetAmount(),
+                target.getCurrentAmount(),
+                remaining,
+                progress,
                 target.getFrequency(),
                 target.getFrequencyAmount(),
                 target.getDeadline()
