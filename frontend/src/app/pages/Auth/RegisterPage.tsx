@@ -80,13 +80,15 @@ export const RegisterPage = () => {
     setIsLoading(true);
 
     try {
-      // ── Real API call (uncomment when backend is ready) ──────────────────
-      // const { user } = await authService.registerUser({ name, username, email, password });
-      // login({ id: user.id, name: user.name, username: user.username ?? undefined, email: user.email ?? '' });
-      // ────────────────────────────────────────────────────────────────────
-
-      const { user } = await authService.registerUser({ name, username, email, password });
-      login({ id: user.id, name: user.name, username: user.username ?? undefined, email: user.email ?? '' });
+      const tempId = localStorage.getItem('guest_temp_id');
+      const { user } = await authService.registerUser({
+        name,
+        username,
+        email,
+        password,
+        tempId: tempId ?? undefined,
+      });
+      await login({ id: user.id, name: user.name, username: user.username ?? undefined, email: user.email ?? '' });
       navigate('/dashboard');
     } catch (err) {
       setServerError(err instanceof Error ? err.message : 'Pendaftaran gagal.');

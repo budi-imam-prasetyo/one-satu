@@ -22,14 +22,13 @@ export const LoginPage = () => {
     setError('');
     setIsLoading(true);
     try {
-      // ── Real API call (uncomment when backend is ready) ──────────────────
-      // const { user } = await authService.loginUser({ email, password });
-      // login({ id: user.id, name: user.name, username: user.username ?? undefined, email: user.email ?? '' });
-      // ────────────────────────────────────────────────────────────────────
-
-      // Dummy: bypass with dummy user regardless of input
-      const { user } = await authService.loginUser({ email, password });
-      login({ id: user.id, name: user.name, username: user.username ?? undefined, email: user.email ?? '' });
+      const tempId = localStorage.getItem('guest_temp_id');
+      const { user } = await authService.loginUser({
+        email,
+        password,
+        tempId: tempId ?? undefined,
+      });
+      await login({ id: user.id, name: user.name, username: user.username ?? undefined, email: user.email ?? '' });
       navigate('/dashboard');
     } catch {
       setError('Email atau kata sandi salah. Coba lagi.');
@@ -66,6 +65,7 @@ export const LoginPage = () => {
               name: profile.name,
               email: profile.email,
               picture: profile.picture,
+              tempId: localStorage.getItem('guest_temp_id') ?? undefined,
             }
         );
 
@@ -75,7 +75,7 @@ export const LoginPage = () => {
         localStorage.setItem('access_token', access_token);
 
         // simpan user ke context
-        login({
+        await login({
           id: user.id,
           name: user.name,
           username: user.username ?? undefined,

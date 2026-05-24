@@ -92,7 +92,7 @@ export const createTarget = async (
   savingSchedule: 'daily' | 'weekly' | 'monthly',
   imageBase64?: string,
   deadline?: string
-): Promise<ApiTarget> => {
+): Promise<TargetResponse> => {
   // ── Real API call (uncomment when backend is ready) ──────────────────────
   // Calculate deadline if not provided
   const finalDeadline = deadline || calculateEstimatedDeadline(targetAmount, savingAmount, savingSchedule);
@@ -128,7 +128,7 @@ export const createTarget = async (
   }
 
   const json = await res.json();
-  return json.data as ApiTarget;
+  return json.data as TargetResponse;
 };
 
 /** PUT /targets/:id — fully update a target */

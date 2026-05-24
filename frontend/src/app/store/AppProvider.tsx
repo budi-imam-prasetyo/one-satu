@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as targetService from '../services/targetService';
+import * as authService from '../services/authService';
 import { ApiTarget, TargetResponse } from '../types/target';
 import { calculateEstimatedDeadline } from '../utils/calculations';
 
@@ -46,7 +47,7 @@ export type User = {
 interface AppContextType {
   user: User | null;
   isLoading: boolean;
-  login: (user: User) => void;
+  login: (user: User) => Promise<void>;
   logout: () => void;
   targets: Target[];
   addTarget: (target: Omit<Target, 'id' | 'currentAmount' | 'history' | 'estimatedDeadline' | 'status'>) => Promise<void>;
@@ -123,37 +124,62 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [targets, setTargets] = useState<Target[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
   const [notifications, setNotifications] = useState<Notification[]>([
     { id: '1', message: 'Selamat datang di TaGo!', read: false, date: new Date().toISOString() },
   ]);
 
-  useEffect(() => {
-    localStorage.setItem('tago_user', JSON.stringify(user));
-  }, [user]);
+  const guestTempKey = 'guest_temp_id';
+
+  const loadTargets = async () => {
+    setIsLoading(true);
+    try {
+      const apiTargets = await targetService.fetchTargets();
+      setTargets(apiTargets.map(mapTargetResponse));
+    } catch (err) {
+      console.error('Failed to load targets:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const load = async () => {
-      setIsLoading(true);
-      try {
-        const apiTargets = await targetService.fetchTargets();
-        setTargets(apiTargets.map(mapTargetResponse));
-      } catch (err) {
-        console.error('Failed to load targets:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    load();
+    loadTargets();
   }, []);
 
-  const login = (userData: User) => {
+  const login = async (userData: User) => {
     setUser(userData);
-    setTargets(prev => prev.map(t => ({ ...t, isGuest: false })));
+    localStorage.removeItem(guestTempKey);
+    await loadTargets();
   };
 
   const logout = () => {
     setUser(null);
+    setTargets([]);
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem(guestTempKey);
+  };
+
+  const ensureGuestSession = async () => {
+    const existingTempId = localStorage.getItem(guestTempKey);
+    const hasToken = !!localStorage.getItem('access_token');
+    if (existingTempId && hasToken) {
+      return existingTempId;
+    }
+
+    const { user: guestUser } = await authService.guestSession({
+      tempId: existingTempId ?? undefined,
+    });
+
+    const tempId = (guestUser as { temp_id?: string; tempId?: string }).temp_id
+      ?? (guestUser as { temp_id?: string; tempId?: string }).tempId
+      ?? existingTempId
+      ?? null;
+
+    if (tempId) {
+      localStorage.setItem(guestTempKey, tempId);
+    }
+    return tempId;
   };
 
   const addTarget = async (
@@ -168,24 +194,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         targetData.image,
         targetData.deadline
       );
-      setTargets(prev => [mapApiTarget(created), ...prev]);
+      setTargets(prev => [mapTargetResponse(created), ...prev]);
       return;
     }
 
-    const estimatedDeadline = calculateEstimatedDeadline(
+    await ensureGuestSession();
+
+    const created = await targetService.createTarget(
+      targetData.name,
       targetData.targetAmount,
       targetData.savingAmount,
-      targetData.savingSchedule
+      targetData.savingSchedule,
+      targetData.image,
+      targetData.deadline
     );
-    const newTarget: Target = {
-      ...targetData,
-      id: `target-${Date.now()}`,
-      currentAmount: 0,
-      history: [],
-      estimatedDeadline,
-      status: 'active',
-    };
-    setTargets(prev => [newTarget, ...prev]);
+
+    setTargets(prev => [
+      { ...mapTargetResponse(created), isGuest: true },
+      ...prev,
+    ]);
   };
 
   const updateTarget = async (id: string, amount: number, type: 'deposit' | 'withdraw') => {
