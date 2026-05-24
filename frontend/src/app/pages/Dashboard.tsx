@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAppContext } from '../store';
 import { motion, AnimatePresence } from 'motion/react';
@@ -8,6 +8,8 @@ import { formatThousand, parseThousand, formatRupiahFull } from '../utils/format
 import { calculateEstimatedDeadline, scheduleLabel } from '../utils/calculations';
 import { ImageUpload } from '../components/ui/ImageUpload';
 import { ScheduleSelector } from '../components/ui/ScheduleSelector';
+import * as targetService from '../services/targetService';
+import type { DashboardStats } from '../types/target';
 
 const SkeletonCard = () => (
   <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-neutral-200 dark:border-neutral-800 overflow-hidden animate-pulse">
@@ -27,7 +29,7 @@ const SkeletonCard = () => (
 );
 
 export const Dashboard = () => {
-  const { user, targets, addTarget, isLoading } = useAppContext();
+  const { user, targets: localTargets, addTarget } = useAppContext();
   const navigate = useNavigate();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -42,13 +44,75 @@ export const Dashboard = () => {
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderTime, setReminderTime] = useState('08:00');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [targets, setTargets] = useState(localTargets);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [isLoadingTargets, setIsLoadingTargets] = useState(false);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
 
-  const totalSaved = targets.reduce((acc, curr) => acc + curr.currentAmount, 0);
-  const activeTargets = targets.filter(t => t.currentAmount < t.targetAmount).length;
-  const completedTargets = targets.filter(t => t.currentAmount >= t.targetAmount).length;
-  const filteredTargets = targets.filter(t =>
-    filter === 'berlangsung' ? t.currentAmount < t.targetAmount : t.currentAmount >= t.targetAmount
-  );
+  const totalSaved = stats?.totalSavings ?? targets.reduce((acc, curr) => acc + curr.currentAmount, 0);
+  const completedTargets = stats?.totalCompleted ?? targets.filter(t => t.currentAmount >= t.targetAmount).length;
+  const activeTargets = stats?.totalTargets != null
+    ? Math.max(0, stats.totalTargets - stats.totalCompleted)
+    : targets.filter(t => t.currentAmount < t.targetAmount).length;
+  const filteredTargets = useMemo(() => (
+    targets.filter(t =>
+      filter === 'berlangsung' ? t.currentAmount < t.targetAmount : t.currentAmount >= t.targetAmount
+    )
+  ), [targets, filter]);
+
+  const loadTargets = useCallback(async () => {
+    if (!user) {
+      setTargets(localTargets);
+      return;
+    }
+    setIsLoadingTargets(true);
+    try {
+      const status = filter === 'berlangsung' ? 'ACTIVE' : 'COMPLETED';
+      const apiTargets = await targetService.fetchTargets(status);
+      setTargets(apiTargets.map(t => {
+        const savingSchedule = t.frequency.toLowerCase() as 'daily' | 'weekly' | 'monthly';
+        return {
+          id: t.id,
+          name: t.title,
+          targetAmount: t.targetAmount,
+          currentAmount: t.currentAmount,
+          savingAmount: t.frequencyAmount,
+          savingSchedule,
+          estimatedDeadline: calculateEstimatedDeadline(
+            t.targetAmount,
+            t.frequencyAmount,
+            savingSchedule
+          ),
+          reminderEnabled: false,
+          status: t.status.toLowerCase() as 'active' | 'paused' | 'completed',
+          deadline: t.deadline ?? undefined,
+          image: t.imageUrl ?? undefined,
+          isGuest: false,
+          history: [],
+        };
+      }));
+    } catch (err) {
+      console.error('Failed to load targets:', err);
+    } finally {
+      setIsLoadingTargets(false);
+    }
+  }, [user, filter, localTargets]);
+
+  const loadStats = useCallback(async () => {
+    if (!user) {
+      setStats(null);
+      return;
+    }
+    setIsLoadingStats(true);
+    try {
+      const apiStats = await targetService.fetchDashboardStats();
+      setStats(apiStats);
+    } catch (err) {
+      console.error('Failed to load stats:', err);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  }, [user]);
 
   const estimatedDeadlineDate = (() => {
     const target = parseThousand(targetAmount);
@@ -94,6 +158,7 @@ export const Dashboard = () => {
       });
 
       toast.success('Target berhasil dibuat');
+      await Promise.all([loadTargets(), loadStats()]);
       setIsModalOpen(false);
       resetForm();
     } catch (err) {
@@ -105,12 +170,29 @@ export const Dashboard = () => {
   };
 
   React.useEffect(() => {
-    if (!isLoading && !user && targets.length === 0) {
+    loadTargets();
+    loadStats();
+  }, [loadTargets, loadStats]);
+
+  React.useEffect(() => {
+    if (!user) {
+      setTargets(localTargets);
+    }
+  }, [user, localTargets]);
+
+  React.useEffect(() => {
+    if (user) {
+      loadTargets();
+    }
+  }, [filter, user, loadTargets]);
+
+  React.useEffect(() => {
+    if (!user && targets.length === 0 && !isLoadingTargets) {
       navigate('/login');
     }
-  }, [user, targets, isLoading, navigate]);
+  }, [user, targets, isLoadingTargets, navigate]);
 
-  if (!isLoading && !user && targets.length === 0) {
+  if (!user && targets.length === 0 && !isLoadingTargets) {
     return null;
   }
 
@@ -222,7 +304,7 @@ export const Dashboard = () => {
             </div>
           </div>
 
-          {isLoading ? (
+          {isLoadingTargets || isLoadingStats ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
             </div>

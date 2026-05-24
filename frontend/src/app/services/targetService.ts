@@ -6,6 +6,8 @@ import {
   PatchTargetRequest,
   CreateTransactionRequest,
   UpdateScheduleRequest,
+  DashboardStats,
+  TargetResponse,
 } from '../types/target';
 import { dummyTargets } from '../data/dummyTargets';
 import { BASE_URL, getAuthHeaders, delay } from '../config';
@@ -42,19 +44,26 @@ function getAuthHeadersMultipart() {
 }
 
 /** GET /targets — fetch all targets for the current user */
-export const fetchTargets = async (): Promise<ApiTarget[]> => {
-  // ── Real API call (uncomment when backend is ready) ──────────────────────
-  // const res = await fetch(`${BASE_URL}/targets`, {
-  //   method: 'GET',
-  //   headers: getAuthHeaders(),
-  // });
-  // if (!res.ok) throw new Error(`fetchTargets failed: ${res.status}`);
-  // const json = await res.json();
-  // return json.data as ApiTarget[];
-  // ─────────────────────────────────────────────────────────────────────────
+export const fetchTargets = async (status?: 'ACTIVE' | 'COMPLETED' | 'PAUSED'): Promise<TargetResponse[]> => {
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  const res = await fetch(`${BASE_URL}/api/targets${query}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(`fetchTargets failed: ${res.status}`);
+  const json = await res.json();
+  return json.data as TargetResponse[];
+};
 
-  await delay();
-  return dummyTargets;
+/** GET /targets/stats — fetch dashboard stats for the current user */
+export const fetchDashboardStats = async (): Promise<DashboardStats> => {
+  const res = await fetch(`${BASE_URL}/api/targets/stats`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(`fetchDashboardStats failed: ${res.status}`);
+  const json = await res.json();
+  return json.data as DashboardStats;
 };
 
 /** GET /targets/:id — fetch a single target with its schedule and transactions */
