@@ -1,4 +1,6 @@
-export const BASE_URL = 'https://api.tago.app/v1'; // TODO: replace with real base URL
+export const BASE_URL = (
+  import.meta.env.VITE_API_URL || 'http://localhost:8080'
+);
 
 export const getAuthHeaders = (): HeadersInit => {
   const token = localStorage.getItem('access_token');

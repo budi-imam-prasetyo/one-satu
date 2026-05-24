@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAppContext } from '../store';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Target, TrendingUp, X, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
+import { Plus, Target, TrendingUp, X, CheckCircle2, AlertTriangle, Clock, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { formatThousand, parseThousand, formatRupiahFull } from '../utils/formatNumber';
 import { calculateEstimatedDeadline, scheduleLabel } from '../utils/calculations';
 import { ImageUpload } from '../components/ui/ImageUpload';
@@ -40,6 +41,7 @@ export const Dashboard = () => {
   const [savingSchedule, setSavingSchedule] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderTime, setReminderTime] = useState('08:00');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const totalSaved = targets.reduce((acc, curr) => acc + curr.currentAmount, 0);
   const activeTargets = targets.filter(t => t.currentAmount < t.targetAmount).length;
@@ -73,23 +75,33 @@ export const Dashboard = () => {
     setReminderTime('08:00');
   };
 
-  const handleCreateTarget = (e: React.FormEvent) => {
+  const handleCreateTarget = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !targetAmount || !savingAmount) return;
 
-    addTarget({
-      name,
-      targetAmount: parseThousand(targetAmount),
-      savingAmount: parseThousand(savingAmount),
-      savingSchedule,
-      reminderEnabled,
-      reminderTime: reminderEnabled ? reminderTime : undefined,
-      image: image || undefined,
-      isGuest: false,
-    });
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await addTarget({
+        name,
+        targetAmount: parseThousand(targetAmount),
+        savingAmount: parseThousand(savingAmount),
+        savingSchedule,
+        reminderEnabled,
+        reminderTime: reminderEnabled ? reminderTime : undefined,
+        image: image || undefined,
+        isGuest: false,
+      });
 
-    setIsModalOpen(false);
-    resetForm();
+      toast.success('Target berhasil dibuat');
+      setIsModalOpen(false);
+      resetForm();
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal membuat target. Coba lagi.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   React.useEffect(() => {
@@ -450,9 +462,13 @@ export const Dashboard = () => {
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 px-4 py-2.5 rounded-xl font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-sm"
+                      disabled={isSubmitting}
+                      className="flex-1 px-4 py-2.5 rounded-xl font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      Simpan
+                      <span className="inline-flex items-center justify-center gap-2">
+                        {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                        {isSubmitting ? 'Menyimpan...' : 'Simpan'}
+                      </span>
                     </button>
                   </div>
                 </form>
