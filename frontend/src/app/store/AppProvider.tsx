@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as targetService from '../services/targetService';
 import * as authService from '../services/authService';
-import { ApiTarget, TargetResponse } from '../types/target';
+import { ApiTarget, TargetResponse, TargetDetailResponse, TargetFrequency } from '../types/target';
+
 import { calculateEstimatedDeadline } from '../utils/calculations';
 
 // ─── App-layer types (camelCase, used throughout UI) ──────────────────────
@@ -21,6 +22,7 @@ export type Target = {
   image?: string;
   isGuest?: boolean;
   history: Transaction[];
+  progressPercent?: number;
 };
 
 export type Transaction = {
@@ -60,6 +62,7 @@ interface AppContextType {
     reminderEnabled: boolean;
     reminderTime?: string;
     image?: string;
+    originalImage?: string;
   }) => Promise<void>;
   deleteTarget: (id: string) => Promise<void>;
   notifications: Notification[];
@@ -111,6 +114,29 @@ const mapTargetResponse = (t: TargetResponse): Target => {
     image: t.imageUrl ?? undefined,
     isGuest: false,
     history: [],
+  };
+};
+
+const mapTargetDetailResponse = (t: TargetDetailResponse, existing?: Target): Target => {
+  const savingSchedule = t.frequency.toLowerCase() as 'daily' | 'weekly' | 'monthly';
+  return {
+    id: t.id,
+    name: t.title,
+    targetAmount: t.targetAmount,
+    currentAmount: t.currentAmount,
+    savingAmount: t.frequencyAmount,
+    savingSchedule,
+    estimatedDeadline: t.deadline
+      ? new Date(t.deadline).toISOString()
+      : calculateEstimatedDeadline(t.targetAmount, t.frequencyAmount, savingSchedule),
+    reminderEnabled: existing?.reminderEnabled ?? false,
+    reminderTime: existing?.reminderTime,
+    status: t.status.toLowerCase() as 'active' | 'paused' | 'completed',
+    deadline: t.deadline ?? undefined,
+    image: t.imageUrl ?? undefined,
+    isGuest: existing?.isGuest ?? false,
+    history: existing?.history ?? [],
+    progressPercent: t.progressPercent,
   };
 };
 
@@ -259,12 +285,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       reminderEnabled: boolean;
       reminderTime?: string;
       image?: string;
+      originalImage?: string;
     }
   ) => {
-    // ── API call (uncomment when backend is ready) ─────────────────────────
-    // await targetService.updateTarget(id, { ... });
-    // await targetService.updateSchedule(id, { ... });
-    // ──────────────────────────────────────────────────────────────────────
+    if (user) {
+      const deadline = calculateEstimatedDeadline(
+        data.targetAmount,
+        data.savingAmount,
+        data.savingSchedule
+      ).split('T')[0];
+
+      const normalizedImage = data.image?.trim() || '';
+      const normalizedOriginal = data.originalImage?.trim() || '';
+      const isSameImage = normalizedImage && normalizedImage === normalizedOriginal;
+      const isNewImage = normalizedImage.startsWith('data:');
+
+      const updated = await targetService.updateTarget(id, {
+        title: data.name,
+        targetAmount: data.targetAmount,
+        frequencyAmount: data.savingAmount,
+        frequency: data.savingSchedule.toUpperCase() as TargetFrequency,
+        deadline,
+        imageUrl: isSameImage ? normalizedImage : undefined,
+        imageBase64: isNewImage ? normalizedImage : undefined,
+      });
+
+      setTargets(prev => prev.map(target => (
+        target.id === id ? mapTargetDetailResponse(updated, target) : target
+      )));
+      return;
+    }
 
     setTargets(prev => prev.map(target => {
       if (target.id !== id) return target;
@@ -287,10 +337,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteTarget = async (id: string) => {
-    // ── API call (uncomment when backend is ready) ─────────────────────────
-    // await targetService.deleteTarget(id);
-    // ──────────────────────────────────────────────────────────────────────
-
+    if (user) {
+      await targetService.deleteTarget(id);
+    }
     setTargets(prev => prev.filter(t => t.id !== id));
   };
 

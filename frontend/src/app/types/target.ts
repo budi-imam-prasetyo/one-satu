@@ -82,12 +82,12 @@ export interface CreateTargetRequest {
 }
 
 export interface UpdateTargetRequest {
-  name?: string;
-  description?: string;
-  image_url?: string;
-  target_amount?: number;
-  status?: 'active' | 'paused' | 'completed';
-  deadline?: string;
+  title: string;
+  targetAmount: number;
+  deadline: string;
+  frequency: TargetFrequency;
+  frequencyAmount: number;
+  imageUrl?: string;
 }
 
 export interface PatchTargetRequest {
@@ -106,4 +106,43 @@ export interface UpdateScheduleRequest {
   amount?: number;
   next_run?: string;
   is_active?: boolean;
+}
+
+export interface TargetDetailResponse {
+  id: string;
+  userId: string;
+  title: string;
+  imageUrl: string | null;
+  status: TargetStatus;
+  targetAmount: number;
+  currentAmount: number;
+  remainingAmount: number;
+  progressPercent: number;
+  frequency: TargetFrequency;
+  frequencyAmount: number;
+  deadline: string | null;
+}
+
+export interface TransactionResponse {
+  id: string;
+  type: 'DEPOSIT' | 'WITHDRAW';
+  amount: number;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface PageResponse<T> {
+  content: T[];
+  empty: boolean;
+  first: boolean;
+  last: boolean;
+  number: number;
+  numberOfElements: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface UpdateTargetPayload extends UpdateTargetRequest {
+  imageBase64?: string;
 }

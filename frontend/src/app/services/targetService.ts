@@ -2,12 +2,15 @@ import {
   ApiTarget,
   ApiTransaction,
   CreateTargetRequest,
-  UpdateTargetRequest,
   PatchTargetRequest,
   CreateTransactionRequest,
   UpdateScheduleRequest,
   DashboardStats,
   TargetResponse,
+  TargetDetailResponse,
+  TransactionResponse,
+  PageResponse,
+  UpdateTargetPayload,
 } from '../types/target';
 import { dummyTargets } from '../data/dummyTargets';
 import { BASE_URL, getAuthHeaders, delay } from '../config';
@@ -84,6 +87,33 @@ export const fetchTarget = async (id: string): Promise<ApiTarget> => {
   return target;
 };
 
+/** GET /targets/:id — fetch a single target detail */
+export const fetchTargetDetail = async (id: string): Promise<TargetDetailResponse> => {
+  const res = await fetch(`${BASE_URL}/api/targets/${id}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(`fetchTargetDetail failed: ${res.status}`);
+  const json = await res.json();
+  return json.data as TargetDetailResponse;
+};
+
+/** GET /targets/:targetId/transactions — fetch paginated transactions */
+export const fetchTargetTransactions = async (
+  targetId: string,
+  page = 0,
+  size = 10
+): Promise<PageResponse<TransactionResponse>> => {
+  const params = new URLSearchParams({ page: page.toString(), size: size.toString() });
+  const res = await fetch(`${BASE_URL}/api/targets/${targetId}/transactions?${params.toString()}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(`fetchTargetTransactions failed: ${res.status}`);
+  const json = await res.json();
+  return json.data as PageResponse<TransactionResponse>;
+};
+
 /** POST /targets — create a new target */
 export const createTarget = async (
   name: string,
@@ -132,21 +162,37 @@ export const createTarget = async (
 };
 
 /** PUT /targets/:id — fully update a target */
-export const updateTarget = async (id: string, body: UpdateTargetRequest): Promise<ApiTarget> => {
-  // ── Real API call (uncomment when backend is ready) ──────────────────────
-  // const res = await fetch(`${BASE_URL}/targets/${id}`, {
-  //   method: 'PUT',
-  //   headers: getAuthHeaders(),
-  //   body: JSON.stringify(body),
-  // });
-  // if (!res.ok) throw new Error(`updateTarget failed: ${res.status}`);
-  // const json = await res.json();
-  // return json.data as ApiTarget;
-  // ─────────────────────────────────────────────────────────────────────────
+export const updateTarget = async (id: string, body: UpdateTargetPayload): Promise<TargetDetailResponse> => {
+  const formData = new FormData();
+  formData.append('title', body.title);
+  formData.append('targetAmount', body.targetAmount.toString());
+  formData.append('frequencyAmount', body.frequencyAmount.toString());
+  formData.append('frequency', body.frequency);
+  formData.append('deadline', body.deadline);
 
-  const existing = dummyTargets.find(t => t.id === id);
-  if (!existing) throw new Error(`Target ${id} not found`);
-  return { ...existing, ...body, updated_at: new Date().toISOString() };
+  if (body.imageUrl) {
+    formData.append('imageUrl', body.imageUrl);
+  }
+  if (body.imageBase64) {
+    try {
+      const blob = dataURLtoBlob(body.imageBase64);
+      formData.append('image', blob, 'target-image.png');
+    } catch (err) {
+      console.error('Failed to convert image:', err);
+    }
+  }
+
+  const res = await fetch(`${BASE_URL}/api/targets/${id}`, {
+    method: 'PUT',
+    headers: getAuthHeadersMultipart(),
+    body: formData,
+  });
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`updateTarget failed: ${res.status} - ${errorText}`);
+  }
+  const json = await res.json();
+  return json.data as TargetDetailResponse;
 };
 
 /** PATCH /targets/:id — partially update a target */
@@ -169,13 +215,11 @@ export const patchTarget = async (id: string, body: PatchTargetRequest): Promise
 
 /** DELETE /targets/:id — delete a target */
 export const deleteTarget = async (id: string): Promise<void> => {
-  // ── Real API call (uncomment when backend is ready) ──────────────────────
-  // const res = await fetch(`${BASE_URL}/targets/${id}`, {
-  //   method: 'DELETE',
-  //   headers: getAuthHeaders(),
-  // });
-  // if (!res.ok) throw new Error(`deleteTarget failed: ${res.status}`);
-  // ─────────────────────────────────────────────────────────────────────────
+  const res = await fetch(`${BASE_URL}/api/targets/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(`deleteTarget failed: ${res.status}`);
 };
 
 /** POST /targets/:targetId/transactions — record a deposit or withdrawal */
