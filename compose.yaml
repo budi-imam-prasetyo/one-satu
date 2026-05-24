@@ -47,10 +47,10 @@ services:
   # =========================
   # FRONTEND DEV (BUN + VITE)
   # =========================
-  frontend-dev:
+  frontend:
     image: oven/bun:1.3.13
 
-    container_name: tago-frontend-dev
+    container_name: tago-frontend
     env_file:
       - ./frontend/.env
 
@@ -76,38 +76,6 @@ services:
 
     stdin_open: true
     tty: true
-
-    profiles:
-      - dev
-
-    networks:
-      - tago-network
-
-  # =========================
-  # FRONTEND PROD (NGINX)
-  # =========================
-  frontend-prod:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      target: production
-
-    container_name: tago-frontend-prod
-
-    ports:
-      - "80:80"
-
-    environment:
-      VITE_API_URL: http://localhost:8080
-      VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-
-    depends_on:
-      - backend
-
-    restart: unless-stopped
-
-    profiles:
-      - prod
 
     networks:
       - tago-network
