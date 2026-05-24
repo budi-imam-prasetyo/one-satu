@@ -149,19 +149,22 @@ public class TargetService {
         target.setStatus(TargetStatus.ACTIVE);
 
         // update image
-        if (image != null && !image.isEmpty()) {
-            // User upload image baru → hapus lama, simpan baru
-            deleteOldImage(target.getImageUrl());
-            validateImage(image);
-            target.setImageUrl(saveImage(image));
-        } else if (request.imageUrl() != null) {
-            // User tidak ubah image → pakai URL lama
-            target.setImageUrl(request.imageUrl());
-        } else {
-            // User hapus image → set null
-            deleteOldImage(target.getImageUrl());
-            target.setImageUrl(null);
+        if(target.getImageUrl() != null) {
+            if (image != null && !image.isEmpty()) {
+                // User upload image baru → hapus lama, simpan baru
+                deleteOldImage(target.getImageUrl());
+                validateImage(image);
+                target.setImageUrl(saveImage(image));
+            } else if (request.imageUrl() != null) {
+                // User tidak ubah image → pakai URL lama
+                target.setImageUrl(request.imageUrl());
+            } else {
+                // User hapus image → set null
+                deleteOldImage(target.getImageUrl());
+                target.setImageUrl(null);
+            }
         }
+
 
         targetRepository.save(target);
         return toDetailResponse(target);
