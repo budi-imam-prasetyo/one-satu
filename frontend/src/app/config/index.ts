@@ -1,6 +1,4 @@
-export const BASE_URL = (
-  import.meta.env.VITE_API_URL || 'http://localhost:8080'
-);
+export const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'; // TODO: replace with real base URL
 
 export const getAuthHeaders = (): HeadersInit => {
   const token = localStorage.getItem('access_token');

@@ -17,6 +17,9 @@ import kelompok_satu.backend.infrastructure.security.JwtAuthenticationFilter;
 
 import java.util.List;
 
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
 @Configuration
 public class SecurityConfig {
 
@@ -76,5 +79,10 @@ public class SecurityConfig {
         );
 
         return source;
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }

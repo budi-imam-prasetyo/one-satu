@@ -42,6 +42,10 @@ public class User extends AuditableEntity {
     @Column(name = "email", unique = true)
     private String email;
 
+    @JsonIgnore
+    @Column(name = "password_hash")
+    private String passwordHash;
+
     @Column(name = "fcm_token")
     private String fcmToken;
 
