@@ -25,4 +25,16 @@ public class TransactionController {
         Page<TransactionResponse> responses = transactionService.getByTarget(user, targetId, page, size);
         return WebResponse.<Page<TransactionResponse>>builder().data(responses).build();
     }
+
+    // create transaksi 
+    @PostMapping
+    public WebResponse<TransactionResponse> createTransaction(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID targetId,
+            @RequestBody TransactionRequest request
+    ) {
+        request.setTargetId(targetId);
+        TransactionResponse response = transactionService.createTransaction(user, request);
+        return WebResponse.<TransactionResponse>builder().data(response).build();
+    }
 }
