@@ -10,6 +10,8 @@ import { ScheduleSelector } from '../components/ui/ScheduleSelector';
 import { fetchTargetDetail, fetchTargetTransactions } from '../services/targetService';
 import { TargetDetailResponse, TransactionResponse } from '../types/target';
 
+const isNotFoundError = (err: unknown) => err instanceof Error && err.message.includes('404');
+
 export const TargetDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -54,8 +56,10 @@ export const TargetDetail = () => {
         const data = await fetchTargetDetail(id);
         if (!cancelled) setDetail(data);
       } catch (err) {
-        console.error('Failed to load target detail:', err);
         if (!cancelled) setDetail(null);
+        if (!isNotFoundError(err)) {
+          console.error('Failed to load target detail:', err);
+        }
       } finally {
         if (!cancelled) setIsLoadingDetail(false);
       }
@@ -65,7 +69,7 @@ export const TargetDetail = () => {
   }, [id, user]);
 
   React.useEffect(() => {
-    if (!id || !user) return;
+    if (!id || !user || !detail) return;
     let cancelled = false;
     const loadTransactions = async () => {
       setIsLoadingTx(true);
@@ -75,10 +79,12 @@ export const TargetDetail = () => {
         setTransactions(page.content);
         setTxTotalPages(page.totalPages || 1);
       } catch (err) {
-        console.error('Failed to load transactions:', err);
         if (!cancelled) {
           setTransactions([]);
           setTxTotalPages(1);
+        }
+        if (!isNotFoundError(err)) {
+          console.error('Failed to load transactions:', err);
         }
       } finally {
         if (!cancelled) setIsLoadingTx(false);
@@ -86,7 +92,7 @@ export const TargetDetail = () => {
     };
     loadTransactions();
     return () => { cancelled = true; };
-  }, [id, user, txPage]);
+  }, [id, user, txPage, detail]);
 
   const targetView = user
     ? (detail ? {
@@ -221,13 +227,14 @@ export const TargetDetail = () => {
       });
 
       if (txPage === 0) {
-        setTransactions(prev => [{
+        const newTx: TransactionResponse = {
           id: `tx-${Date.now()}`,
           type: transactionType === 'deposit' ? 'DEPOSIT' : 'WITHDRAW',
           amount,
           note: null,
           createdAt: new Date().toISOString(),
-        }, ...prev].slice(0, 10));
+        };
+        setTransactions(prev => [newTx, ...prev].slice(0, 10));
       }
     }
 
