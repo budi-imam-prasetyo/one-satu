@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import * as targetService from '../services/targetService';
 import * as authService from '../services/authService';
 import { ApiTarget, TargetResponse, TargetDetailResponse, TargetFrequency } from '../types/target';
@@ -156,9 +156,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const guestTempKey = 'guest_temp_id';
 
-  const loadTargets = async () => {
+  const logout = useCallback(() => {
+    setUser(null);
+    setTargets([]);
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem(guestTempKey);
+    localStorage.removeItem('tago_user');
+  }, []);
+
+  const loadTargets = useCallback(async () => {
     setIsLoading(true);
     try {
+      if (authService.isAccessTokenExpired()) {
+        logout();
+        return;
+      }
       const apiTargets = await targetService.fetchTargets();
       setTargets(apiTargets.map(mapTargetResponse));
     } catch (err) {
@@ -166,25 +179,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [logout]);
+
+  const login = useCallback(async (userData: User) => {
+    setUser(userData);
+    localStorage.setItem('tago_user', JSON.stringify(userData));
+    localStorage.removeItem(guestTempKey);
+    await loadTargets();
+  }, [loadTargets]);
 
   useEffect(() => {
     loadTargets();
-  }, []);
+  }, [loadTargets]);
 
-  const login = async (userData: User) => {
-    setUser(userData);
-    localStorage.removeItem(guestTempKey);
-    await loadTargets();
-  };
-
-  const logout = () => {
-    setUser(null);
-    setTargets([]);
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem(guestTempKey);
-  };
+  useEffect(() => {
+    const checkToken = () => {
+      if (authService.isAccessTokenExpired()) {
+        logout();
+      }
+    };
+    checkToken();
+    const intervalId = window.setInterval(checkToken, 60_000);
+    return () => window.clearInterval(intervalId);
+  }, [logout]);
 
   const ensureGuestSession = async () => {
     const existingTempId = localStorage.getItem(guestTempKey);

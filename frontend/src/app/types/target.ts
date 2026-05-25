@@ -32,7 +32,7 @@ export interface ApiTarget {
   id: string;
   user_id: string;
   name: string;
-  // description: string | null;
+  description?: string | null;
   image_url: string | null;
   status: 'active' | 'paused' | 'completed';
   target_amount: number;
@@ -40,7 +40,7 @@ export interface ApiTarget {
   deadline: string | null;
   created_at: string;
   updated_at: string;
-  // schedule: ApiSchedule | null;
+  schedule?: ApiSchedule | null;
   transactions: ApiTransaction[];
 }
 
