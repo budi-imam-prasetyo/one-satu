@@ -41,4 +41,15 @@ public class NotificationController {
     public SseEmitter subscribe(@AuthenticationPrincipal User user) {
         return notificationSseService.subscribe(user.getId());
     }
+
+    @GetMapping("/test/broadcast")
+    public WebResponse<String> broadcastTest(
+            @RequestParam(defaultValue = "Tes Notifikasi") String title,
+            @RequestParam(defaultValue = "Ini adalah pesan uji coba.") String message
+    ) {
+        int count = notificationService.sendTestBroadcast(title, message);
+        return WebResponse.<String>builder()
+                .data("Sent to " + count + " users")
+                .build();
+    }
 }

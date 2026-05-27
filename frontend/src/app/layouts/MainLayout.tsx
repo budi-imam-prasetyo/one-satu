@@ -1,18 +1,15 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router';
 import { useAppContext } from '../store';
 import { useTheme } from '../contexts/ThemeContext';
-import { Bell, Wallet, LogOut, LayoutDashboard, Sun, Moon } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { Wallet, LogOut, LayoutDashboard, Sun, Moon } from 'lucide-react';
+import { NotificationBell } from '../components/NotificationBell';
 
 export const MainLayout = () => {
-  const { user, logout, notifications, markNotificationRead } = useAppContext();
+  const { user, logout } = useAppContext();
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const [showNotifications, setShowNotifications] = useState(false);
-
-  const unreadCount = notifications.filter(n => !n.read).length;
 
   const handleLogout = () => {
     logout();
@@ -47,59 +44,7 @@ export const MainLayout = () => {
               </button>
 
               {user && (
-                <div className="relative">
-                  <button
-                    onClick={() => setShowNotifications(!showNotifications)}
-                    className="p-2 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full relative transition-colors"
-                  >
-                    <Bell className="w-5 h-5" />
-                    {unreadCount > 0 && (
-                      <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-neutral-900"></span>
-                    )}
-                  </button>
-
-                  <AnimatePresence>
-                    {showNotifications && (
-                      <>
-                        <div
-                          className="fixed inset-0 sm:hidden z-40"
-                          onClick={() => setShowNotifications(false)}
-                        ></div>
-
-                        <motion.div
-                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                          transition={{ duration: 0.15 }}
-                          className="fixed sm:absolute left-1/2 sm:left-auto right-auto sm:right-0 -translate-x-1/2 sm:translate-x-0 top-16 sm:top-auto mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-neutral-100 dark:border-neutral-800 py-2 z-50"
-                        >
-                          <div className="px-4 py-2 border-b border-neutral-100 dark:border-neutral-800 flex justify-between items-center">
-                            <h3 className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">Notifikasi</h3>
-                            <span className="text-xs text-neutral-500 dark:text-neutral-400">{unreadCount} belum dibaca</span>
-                          </div>
-                          <div className="max-h-64 overflow-y-auto">
-                            {notifications.length === 0 ? (
-                              <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center py-4">Belum ada notifikasi.</p>
-                            ) : (
-                              notifications.map(notif => (
-                                <div
-                                  key={notif.id}
-                                  onClick={() => markNotificationRead(notif.id)}
-                                  className={`px-4 py-3 hover:bg-neutral-50 dark:hover:bg-neutral-800 cursor-pointer transition-colors ${!notif.read ? 'bg-emerald-50/50 dark:bg-emerald-900/20' : ''}`}
-                                >
-                                  <p className={`text-sm ${!notif.read ? 'font-medium text-neutral-900 dark:text-neutral-100' : 'text-neutral-600 dark:text-neutral-400'}`}>{notif.message}</p>
-                                  <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
-                                    {new Date(notif.date).toLocaleDateString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                                  </p>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
-                </div>
+                <NotificationBell />
               )}
 
               {user ? (

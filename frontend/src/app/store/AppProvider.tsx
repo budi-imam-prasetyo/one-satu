@@ -1,7 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import * as targetService from '../services/targetService';
 import * as authService from '../services/authService';
+import * as notificationService from '../services/notificationService';
 import { ApiTarget, TargetResponse, TargetDetailResponse, TargetFrequency } from '../types/target';
+import { NotificationItem, NotificationResponse } from '../types/notification';
+import { BASE_URL } from '../config';
+import { onForegroundMessage, requestFcmToken } from '../../lib/firebase';
+import { toast } from 'sonner';
 
 import { calculateEstimatedDeadline } from '../utils/calculations';
 
@@ -32,13 +37,6 @@ export type Transaction = {
   type: 'deposit' | 'withdraw';
 };
 
-export type Notification = {
-  id: string;
-  message: string;
-  read: boolean;
-  date: string;
-};
-
 export type User = {
   id: string;
   name: string;
@@ -65,8 +63,8 @@ interface AppContextType {
     originalImage?: string;
   }) => Promise<void>;
   deleteTarget: (id: string) => Promise<void>;
-  notifications: Notification[];
-  markNotificationRead: (id: string) => void;
+  notifications: NotificationItem[];
+  markNotificationRead: (id: string) => Promise<void>;
 }
 
 const mapApiTarget = (t: ApiTarget): Target => ({
@@ -150,20 +148,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [targets, setTargets] = useState<Target[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [notifications, setNotifications] = useState<Notification[]>([
-    { id: '1', message: 'Selamat datang di TaGo!', read: false, date: new Date().toISOString() },
-  ]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const sseRef = useRef<EventSource | null>(null);
 
   const guestTempKey = 'guest_temp_id';
 
+  const mapNotificationResponse = (n: NotificationResponse): NotificationItem => ({
+    id: n.id,
+    title: n.title,
+    message: n.message,
+    isRead: n.isRead,
+    sentAt: n.sentAt,
+  });
+
+  const upsertNotification = useCallback((incoming: NotificationItem) => {
+    setNotifications((prev) => {
+      const index = prev.findIndex((n) => n.id === incoming.id);
+      if (index === -1) return [incoming, ...prev];
+      const next = [...prev];
+      next[index] = { ...prev[index], ...incoming };
+      return next;
+    });
+  }, []);
+
+  const closeSse = useCallback(() => {
+    if (sseRef.current) {
+      sseRef.current.close();
+      sseRef.current = null;
+    }
+  }, []);
+
   const logout = useCallback(() => {
+    closeSse();
     setUser(null);
     setTargets([]);
+    setNotifications([]);
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    localStorage.removeItem('fcm_token');
     localStorage.removeItem(guestTempKey);
     localStorage.removeItem('tago_user');
-  }, []);
+  }, [closeSse]);
 
   const loadTargets = useCallback(async () => {
     setIsLoading(true);
@@ -188,9 +213,108 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await loadTargets();
   }, [loadTargets]);
 
+  const loadNotifications = useCallback(async () => {
+    if (!user) return;
+    try {
+      const items = await notificationService.fetchNotifications();
+      setNotifications(items.map(mapNotificationResponse));
+    } catch (err) {
+      console.error('Failed to load notifications:', err);
+    }
+  }, [user]);
+
   useEffect(() => {
     loadTargets();
   }, [loadTargets]);
+
+  useEffect(() => {
+    if (!user) return;
+    loadNotifications();
+  }, [user, loadNotifications]);
+
+  useEffect(() => {
+    if (!user) {
+      closeSse();
+      return;
+    }
+
+    if (sseRef.current) return;
+
+    const accessToken = localStorage.getItem('access_token');
+    if (!accessToken) return;
+
+    const sseUrl = `${BASE_URL}/api/notifications/subscribe?token=${encodeURIComponent(accessToken)}`;
+    const source = new EventSource(sseUrl, {
+      withCredentials: true,
+    });
+    sseRef.current = source;
+
+    source.addEventListener('notification', (event) => {
+      try {
+        const parsed = JSON.parse((event as MessageEvent).data) as NotificationResponse;
+        upsertNotification(mapNotificationResponse(parsed));
+      } catch (err) {
+        console.error('Failed to parse notification SSE:', err);
+      }
+    });
+
+    source.onerror = () => {
+      closeSse();
+    };
+
+    return () => {
+      closeSse();
+    };
+  }, [user, closeSse, upsertNotification]);
+
+  const syncFcmToken = useCallback(async () => {
+    const token = await requestFcmToken();
+    if (!token) return;
+    const storedToken = localStorage.getItem('fcm_token');
+    if (token === storedToken) return;
+    await notificationService.updateFcmToken(token);
+    localStorage.setItem('fcm_token', token);
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const refreshToken = () => {
+      syncFcmToken().catch((err) => console.error('Failed to sync FCM token:', err));
+    };
+
+    refreshToken();
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refreshToken();
+      }
+    };
+
+    window.addEventListener('focus', refreshToken);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.removeEventListener('focus', refreshToken);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [user, syncFcmToken]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    let unsubscribe = () => {};
+    const setup = async () => {
+      unsubscribe = await onForegroundMessage((payload) => {
+        const title = payload?.notification?.title ?? 'Notifikasi baru';
+        const message = payload?.notification?.body ?? '';
+        toast(title, { description: message });
+      });
+    };
+
+    setup();
+    return () => unsubscribe();
+  }, [user]);
 
   useEffect(() => {
     const checkToken = () => {
@@ -272,10 +396,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         : target.currentAmount - amount;
       if (target.currentAmount < target.targetAmount && newAmount >= target.targetAmount) {
         setNotifications(n => [{
-          id: Date.now().toString(),
+          id: `local-${Date.now()}`,
+          title: 'Target tercapai',
           message: `Selamat! Target "${target.name}" telah tercapai! 🎉`,
-          read: false,
-          date: new Date().toISOString(),
+          isRead: false,
+          sentAt: new Date().toISOString(),
         }, ...n]);
       }
       return {
@@ -360,9 +485,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTargets(prev => prev.filter(t => t.id !== id));
   };
 
-  const markNotificationRead = (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-  };
+  const markNotificationRead = useCallback(async (id: string) => {
+    if (id.startsWith('local-')) {
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+      return;
+    }
+
+    try {
+      const updated = await notificationService.markNotificationRead(id);
+      upsertNotification(mapNotificationResponse(updated));
+    } catch (err) {
+      console.error('Failed to mark notification as read:', err);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    }
+  }, [upsertNotification]);
 
   return (
     <AppContext.Provider value={{

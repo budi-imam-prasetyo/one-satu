@@ -1,5 +1,7 @@
 package kelompok_satu.backend.user;
 
+import kelompok_satu.backend.infrastructure.response.WebResponse;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -42,5 +44,15 @@ public class UserController {
     public String deleteUser(@PathVariable UUID id) {
         userService.deleteUser(id);
         return "User deleted successfully";
+    }
+
+    @PatchMapping("/fcm-token")
+    public WebResponse<String> updateFcmToken(
+            @AuthenticationPrincipal User user,
+            @RequestParam String token) {
+        userService.updateFcmToken(user, token);
+        return WebResponse.<String>builder()
+                .data("FCM token updated")
+                .build();
     }
 }

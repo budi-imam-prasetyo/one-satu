@@ -6,7 +6,7 @@ import java.util.UUID;
 public record NotificationResponse(
         UUID id,
         String title,
-        String body,
+        String message,
         boolean isRead,
         LocalDateTime sentAt
 ) {
