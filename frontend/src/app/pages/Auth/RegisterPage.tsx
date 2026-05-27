@@ -61,10 +61,17 @@ export const RegisterPage = () => {
     medium: 'bg-amber-500',
     strong: 'bg-emerald-500',
   };
+  
+  const strengthTextClass = {
+    weak: 'text-red-500',
+    medium: 'text-amber-500',
+    strong: 'text-emerald-500',
+  };
+
   const strengthLabel = {
-    weak: 'Lemah',
-    medium: 'Sedang',
-    strong: 'Kuat',
+    weak: 'Sangat Lemah',
+    medium: 'Cukup Aman',
+    strong: 'Sangat Kuat',
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -98,36 +105,47 @@ export const RegisterPage = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col justify-center items-center py-12 px-4 sm:px-6 bg-neutral-50 dark:bg-neutral-950">
+    <div className="flex-1 flex flex-col justify-center items-center py-12 px-4 sm:px-6 bg-background relative bg-grid-pattern">
+      {/* Dynamic Background Blobs */}
+      <div className="absolute top-[10%] right-[20%] w-[350px] h-[350px] rounded-full bg-emerald-500/10 dark:bg-emerald-950/15 blur-[90px] animate-blob-slow -z-10" />
+      <div className="absolute bottom-[10%] left-[20%] w-[350px] h-[350px] rounded-full bg-indigo-500/10 dark:bg-indigo-950/15 blur-[90px] animate-blob-delayed -z-10" />
+
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-md bg-white dark:bg-neutral-900 rounded-2xl shadow-xl shadow-neutral-200/50 dark:shadow-black/30 border border-neutral-100 dark:border-neutral-800 overflow-hidden"
+        initial={{ opacity: 0, y: 30, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: 'spring', stiffness: 90, damping: 15 }}
+        className="w-full max-w-md bg-white dark:bg-neutral-900 rounded-[2.2rem] shadow-2xl border border-slate-200/50 dark:border-neutral-800/60 overflow-hidden glass-panel"
       >
         <div className="p-8">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-2xl mb-4">
-              <Wallet className="w-8 h-8" />
-            </div>
-            <h2 className="text-3xl font-bold text-neutral-900 dark:text-neutral-100">Buat Akun</h2>
-            <p className="text-neutral-500 dark:text-neutral-400 mt-2">Mulai perjalanan menabungmu bersama TaGo</p>
+          <div className="text-center mb-6">
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-emerald-500 to-teal-500 text-slate-950 rounded-2xl mb-4 shadow-lg shadow-emerald-500/20"
+            >
+              <Wallet className="w-6 h-6 text-slate-950" />
+            </motion.div>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white font-display tracking-tight">Buat Akun Baru</h2>
+            <p className="text-xs text-muted-foreground mt-1.5">Mulai perjalanan menabung yang teratur di TaGo</p>
           </div>
 
           {serverError && (
-            <div className="mb-5 px-4 py-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-400">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-5 px-4 py-3 bg-red-500/10 border border-red-500/25 rounded-2xl text-xs text-red-600 dark:text-red-400 font-medium"
+            >
               {serverError}
-            </div>
+            </motion.div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            
             {/* Nama Lengkap */}
-            <div>
-              <label htmlFor="reg-name" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                Nama Lengkap
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <User className="w-5 h-5 text-neutral-400 dark:text-neutral-500" />
+            <div className="space-y-1.5">
+              <label htmlFor="reg-name" className="block text-xs font-bold text-slate-500 dark:text-slate-400">Nama Lengkap</label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-emerald-500 transition-colors">
+                  <User className="w-4 h-4" />
                 </div>
                 <input
                   type="text"
@@ -136,20 +154,20 @@ export const RegisterPage = () => {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Budi Santoso"
                   autoComplete="name"
-                  className={`w-full pl-12 pr-4 py-3 rounded-xl border ${fieldErrors.name ? 'border-red-400 dark:border-red-600' : 'border-neutral-300 dark:border-neutral-700'} bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors outline-none`}
+                  className={`w-full pl-11 pr-4 py-3.5 rounded-2xl border ${
+                    fieldErrors.name ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500' : 'border-slate-200 dark:border-slate-800 focus:ring-emerald-500/30 focus:border-emerald-500'
+                  } bg-slate-50/60 dark:bg-neutral-950/60 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-neutral-600 focus:ring-2 transition-all outline-none text-sm`}
                 />
               </div>
-              {fieldErrors.name && <p className="mt-1 text-xs text-red-500 dark:text-red-400">{fieldErrors.name}</p>}
+              {fieldErrors.name && <p className="text-[10px] text-red-500 font-medium mt-1">{fieldErrors.name}</p>}
             </div>
 
             {/* Username */}
-            <div>
-              <label htmlFor="reg-username" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                Username
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <AtSign className="w-5 h-5 text-neutral-400 dark:text-neutral-500" />
+            <div className="space-y-1.5">
+              <label htmlFor="reg-username" className="block text-xs font-bold text-slate-500 dark:text-slate-400">Username</label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-emerald-500 transition-colors">
+                  <AtSign className="w-4 h-4" />
                 </div>
                 <input
                   type="text"
@@ -158,7 +176,9 @@ export const RegisterPage = () => {
                   onChange={(e) => handleUsernameChange(e.target.value)}
                   placeholder="budisantoso"
                   autoComplete="username"
-                  className={`w-full pl-12 pr-4 py-3 rounded-xl border ${fieldErrors.username ? 'border-red-400 dark:border-red-600' : 'border-neutral-300 dark:border-neutral-700'} bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors outline-none`}
+                  className={`w-full pl-11 pr-10 py-3.5 rounded-2xl border ${
+                    fieldErrors.username ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500' : 'border-slate-200 dark:border-slate-800 focus:ring-emerald-500/30 focus:border-emerald-500'
+                  } bg-slate-50/60 dark:bg-neutral-950/60 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-neutral-600 focus:ring-2 transition-all outline-none text-sm`}
                 />
                 {username && !fieldErrors.username && (
                   <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
@@ -166,42 +186,41 @@ export const RegisterPage = () => {
                   </div>
                 )}
               </div>
-              {fieldErrors.username
-                ? <p className="mt-1 text-xs text-red-500 dark:text-red-400">{fieldErrors.username}</p>
-                : <p className="mt-1 text-xs text-neutral-400 dark:text-neutral-500">Huruf kecil, angka, dan underscore saja</p>
-              }
+              {fieldErrors.username ? (
+                <p className="text-[10px] text-red-500 font-medium mt-1">{fieldErrors.username}</p>
+              ) : (
+                <p className="text-[9px] text-muted-foreground mt-1 tracking-wide font-medium">Hanya huruf kecil, angka, dan garis bawah (_)</p>
+              )}
             </div>
 
             {/* Email */}
-            <div>
-              <label htmlFor="reg-email" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                Email
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Mail className="w-5 h-5 text-neutral-400 dark:text-neutral-500" />
+            <div className="space-y-1.5">
+              <label htmlFor="reg-email" className="block text-xs font-bold text-slate-500 dark:text-slate-400">Surel (Email)</label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-emerald-500 transition-colors">
+                  <Mail className="w-4 h-4" />
                 </div>
                 <input
                   type="email"
                   id="reg-email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="budi@example.com"
+                  placeholder="budi.santoso@example.com"
                   autoComplete="email"
-                  className={`w-full pl-12 pr-4 py-3 rounded-xl border ${fieldErrors.email ? 'border-red-400 dark:border-red-600' : 'border-neutral-300 dark:border-neutral-700'} bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors outline-none`}
+                  className={`w-full pl-11 pr-4 py-3.5 rounded-2xl border ${
+                    fieldErrors.email ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500' : 'border-slate-200 dark:border-slate-800 focus:ring-emerald-500/30 focus:border-emerald-500'
+                  } bg-slate-50/60 dark:bg-neutral-950/60 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-neutral-600 focus:ring-2 transition-all outline-none text-sm`}
                 />
               </div>
-              {fieldErrors.email && <p className="mt-1 text-xs text-red-500 dark:text-red-400">{fieldErrors.email}</p>}
+              {fieldErrors.email && <p className="text-[10px] text-red-500 font-medium mt-1">{fieldErrors.email}</p>}
             </div>
 
             {/* Password */}
-            <div>
-              <label htmlFor="reg-password" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                Kata Sandi
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Lock className="w-5 h-5 text-neutral-400 dark:text-neutral-500" />
+            <div className="space-y-1.5">
+              <label htmlFor="reg-password" className="block text-xs font-bold text-slate-500 dark:text-slate-400">Kata Sandi</label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-emerald-500 transition-colors">
+                  <Lock className="w-4 h-4" />
                 </div>
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -210,47 +229,50 @@ export const RegisterPage = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Minimal 8 karakter"
                   autoComplete="new-password"
-                  className={`w-full pl-12 pr-12 py-3 rounded-xl border ${fieldErrors.password ? 'border-red-400 dark:border-red-600' : 'border-neutral-300 dark:border-neutral-700'} bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors outline-none`}
+                  className={`w-full pl-11 pr-11 py-3.5 rounded-2xl border ${
+                    fieldErrors.password ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500' : 'border-slate-200 dark:border-slate-800 focus:ring-emerald-500/30 focus:border-emerald-500'
+                  } bg-slate-50/60 dark:bg-neutral-950/60 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-neutral-600 focus:ring-2 transition-all outline-none text-sm`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-muted-foreground hover:text-slate-900 dark:hover:text-white transition-colors"
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              {fieldErrors.password && <p className="mt-1 text-xs text-red-500 dark:text-red-400">{fieldErrors.password}</p>}
+              {fieldErrors.password && <p className="text-[10px] text-red-500 font-medium mt-1">{fieldErrors.password}</p>}
 
               {passwordStrength && !fieldErrors.password && (
                 <div className="mt-2 space-y-1">
-                  <div className="flex gap-1">
+                  <div className="flex gap-1.5">
                     {(['weak', 'medium', 'strong'] as const).map((level, i) => (
                       <div
                         key={level}
-                        className={`flex-1 h-1 rounded-full transition-colors ${
+                        className={`flex-1 h-1 rounded-full transition-all duration-300 ${
                           i <= (['weak', 'medium', 'strong'].indexOf(passwordStrength))
                             ? strengthColor[passwordStrength]
-                            : 'bg-neutral-200 dark:bg-neutral-700'
+                            : 'bg-slate-200 dark:bg-neutral-800'
                         }`}
                       />
                     ))}
                   </div>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                    Kekuatan: <span className={`font-medium ${passwordStrength === 'weak' ? 'text-red-500' : passwordStrength === 'medium' ? 'text-amber-500' : 'text-emerald-500'}`}>{strengthLabel[passwordStrength]}</span>
+                  <p className="text-[10px] text-muted-foreground">
+                    Kekuatan Sandi:{' '}
+                    <span className={`font-black ${strengthTextClass[passwordStrength]}`}>
+                      {strengthLabel[passwordStrength]}
+                    </span>
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Konfirmasi Kata Sandi */}
-            <div>
-              <label htmlFor="reg-password-confirmation" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                Konfirmasi Kata Sandi
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Lock className="w-5 h-5 text-neutral-400 dark:text-neutral-500" />
+            {/* Konfirmasi Password */}
+            <div className="space-y-1.5">
+              <label htmlFor="reg-password-confirmation" className="block text-xs font-bold text-slate-500 dark:text-slate-400">Ulangi Kata Sandi</label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-emerald-500 transition-colors">
+                  <Lock className="w-4 h-4" />
                 </div>
                 <input
                   type={showPasswordConfirmation ? 'text' : 'password'}
@@ -259,44 +281,54 @@ export const RegisterPage = () => {
                   onChange={(e) => setPasswordConfirmation(e.target.value)}
                   placeholder="Ulangi kata sandi"
                   autoComplete="new-password"
-                  className={`w-full pl-12 pr-12 py-3 rounded-xl border ${fieldErrors.passwordConfirmation ? 'border-red-400 dark:border-red-600' : passwordConfirmation && passwordConfirmation === password ? 'border-emerald-400 dark:border-emerald-600' : 'border-neutral-300 dark:border-neutral-700'} bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors outline-none`}
+                  className={`w-full pl-11 pr-11 py-3.5 rounded-2xl border ${
+                    fieldErrors.passwordConfirmation
+                      ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
+                      : passwordConfirmation && passwordConfirmation === password
+                      ? 'border-emerald-500 focus:ring-emerald-500/20 focus:border-emerald-500'
+                      : 'border-slate-200 dark:border-slate-800 focus:ring-emerald-500/30 focus:border-emerald-500'
+                  } bg-slate-50/60 dark:bg-neutral-950/60 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-neutral-600 focus:ring-2 transition-all outline-none text-sm`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPasswordConfirmation(!showPasswordConfirmation)}
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-muted-foreground hover:text-slate-900 dark:hover:text-white transition-colors"
                 >
-                  {showPasswordConfirmation ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPasswordConfirmation ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              {fieldErrors.passwordConfirmation
-                ? <p className="mt-1 text-xs text-red-500 dark:text-red-400">{fieldErrors.passwordConfirmation}</p>
-                : passwordConfirmation && passwordConfirmation === password
-                  ? <p className="mt-1 text-xs text-emerald-500 dark:text-emerald-400 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Kata sandi cocok</p>
-                  : null
-              }
+              {fieldErrors.passwordConfirmation ? (
+                <p className="text-[10px] text-red-500 font-medium mt-1">{fieldErrors.passwordConfirmation}</p>
+              ) : passwordConfirmation && passwordConfirmation === password ? (
+                <p className="text-[10px] text-emerald-500 font-bold mt-1 flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Konfirmasi kata sandi cocok
+                </p>
+              ) : null}
             </div>
 
-            <button
+            <motion.button
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.99 }}
               type="submit"
               disabled={isLoading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-xl font-semibold transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed active:scale-[0.98] mt-2"
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 py-3.5 rounded-2xl font-bold text-sm transition-all shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/25 disabled:opacity-70 disabled:cursor-not-allowed mt-4"
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  Membuat Akun...
+                  <div className="w-4 h-4 border-2 border-slate-950/40 border-t-slate-950 rounded-full animate-spin" />
+                  Mendaftarkan Akun...
                 </span>
-              ) : 'Buat Akun'}
-            </button>
+              ) : 'Daftar Sekarang'}
+            </motion.button>
           </form>
         </div>
 
-        <div className="bg-neutral-50 dark:bg-neutral-800 px-8 py-6 border-t border-neutral-100 dark:border-neutral-700 text-center">
-          <p className="text-sm text-neutral-600 dark:text-neutral-400">
-            Sudah punya akun?{' '}
-            <Link to="/login" className="font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300">
-              Masuk sekarang
+        {/* Footer */}
+        <div className="bg-slate-50/60 dark:bg-neutral-950/60 px-8 py-5 border-t border-slate-200/50 dark:border-slate-800/50 text-center">
+          <p className="text-xs text-muted-foreground font-medium">
+            Sudah terdaftar?{' '}
+            <Link to="/login" className="font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300">
+              Masuk di Sini
             </Link>
           </p>
         </div>
