@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { useAppContext } from '../store';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Trash2, Edit3, X, Bell, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2, Image as ImageIcon, Sparkles, Award, Wallet, DollarSign } from 'lucide-react';
+import { ArrowLeft, Trash2, Edit3, X, Bell, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2, Image as ImageIcon, Sparkles, Award, Wallet, DollarSign, Target } from 'lucide-react';
 import { formatThousand, parseThousand, formatRupiah } from '../utils/formatNumber';
 import { calculateEstimatedDeadline, scheduleLabel } from '../utils/calculations';
 import { ImageUpload } from '../components/ui/ImageUpload';
