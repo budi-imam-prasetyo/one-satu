@@ -37,9 +37,11 @@ export const GuestPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !targetAmount || !savingAmount) return;
+
     if (isSubmitting) return;
 
     setIsSubmitting(true);
+        
     try {
       await addTarget({
         name,
@@ -52,6 +54,9 @@ export const GuestPage = () => {
       });
 
       navigate('/dashboard');
+    } catch (err) {
+      console.error('Gagal membuat target tamu:', err);
+      alert('Gagal membuat target. Silakan coba lagi.');
     } finally {
       setIsSubmitting(false);
     }

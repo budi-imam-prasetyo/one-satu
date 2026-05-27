@@ -7,7 +7,7 @@ import { formatThousand, parseThousand, formatRupiah } from '../utils/formatNumb
 import { calculateEstimatedDeadline, scheduleLabel } from '../utils/calculations';
 import { ImageUpload } from '../components/ui/ImageUpload';
 import { ScheduleSelector } from '../components/ui/ScheduleSelector';
-import { fetchTargetDetail, fetchTargetTransactions } from '../services/targetService';
+import { fetchTargetDetail, fetchTargetTransactions, createTransaction } from '../services/targetService';
 import { TargetDetailResponse, TransactionResponse } from '../types/target';
 
 const isNotFoundError = (err: unknown) => err instanceof Error && err.message.includes('404');
@@ -121,15 +121,15 @@ export const TargetDetail = () => {
     : (localTarget?.history ?? []);
 
   React.useEffect(() => {
-    if (!isLoading && !user && !targetView?.isGuest) {
-      navigate('/login');
+    if (isLoading) return;
+    if (!user && !localTarget) {
+      navigate('/dashboard', { replace: true });
     }
-  }, [user, targetView, isLoading, navigate]);
+  }, [isLoading, user, localTarget, navigate]);
 
-  if (!isLoading && !user && !targetView?.isGuest) {
+  if (isLoading && !localTarget && !user) {
     return null;
   }
-
   if ((user ? isLoadingDetail : isLoading) && !targetView) {
     return (
       <div className="flex-1 bg-neutral-100 dark:bg-neutral-950 min-h-screen animate-pulse">
@@ -201,41 +201,45 @@ export const TargetDetail = () => {
     return new Date(iso).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
   })();
 
-  const handleTransaction = (e: React.FormEvent) => {
+  const handleTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetView) return;
+
     const amount = parseThousand(amountInput);
     if (!amount || amount <= 0) return;
     if (transactionType === 'withdraw' && amount > targetView.currentAmount) {
       alert('Saldo tidak mencukupi untuk ditarik.');
       return;
     }
-    updateTarget(targetView.id, amount, transactionType);
 
     if (user && detail) {
-      const newAmount = transactionType === 'deposit'
-        ? detail.currentAmount + amount
-        : detail.currentAmount - amount;
-      const newRemaining = Math.max(0, detail.targetAmount - newAmount);
-      const newPercentage = Math.min(100, Math.round((newAmount / detail.targetAmount) * 100));
-
-      setDetail({
-        ...detail,
-        currentAmount: newAmount,
-        remainingAmount: newRemaining,
-        progressPercent: newPercentage,
-      });
-
-      if (txPage === 0) {
-        const newTx: TransactionResponse = {
-          id: `tx-${Date.now()}`,
-          type: transactionType === 'deposit' ? 'DEPOSIT' : 'WITHDRAW',
+      try {
+        const savedTx = await createTransaction(targetView.id, {
+          type: transactionType,
           amount,
           note: null,
-          createdAt: new Date().toISOString(),
-        };
-        setTransactions(prev => [newTx, ...prev].slice(0, 10));
+        });
+
+        const refreshedDetail = await fetchTargetDetail(targetView.id);
+        setDetail(refreshedDetail);
+
+        if (txPage === 0) {
+          const newTx: TransactionResponse = {
+            id: savedTx.id,
+            type: savedTx.type,
+            amount: savedTx.amount,
+            note: savedTx.note,
+            createdAt: savedTx.createdAt,
+          };
+          setTransactions(prev => [newTx, ...prev].slice(0, 10));
+        }
+      } catch (err) {
+        console.error('Gagal menyimpan transaksi:', err);
+        alert('Gagal menyimpan transaksi. Silakan coba lagi.');
+        return;
       }
+    } else {
+      await updateTarget(targetView.id, amount, transactionType);
     }
 
     setAmountInput('');

@@ -1,9 +1,8 @@
 import {
   ApiTarget,
-  ApiTransaction,
   CreateTargetRequest,
-  PatchTargetRequest,
   CreateTransactionRequest,
+  PatchTargetRequest,
   UpdateScheduleRequest,
   DashboardStats,
   TargetResponse,
@@ -226,27 +225,26 @@ export const deleteTarget = async (id: string): Promise<void> => {
 export const createTransaction = async (
   targetId: string,
   body: CreateTransactionRequest
-): Promise<ApiTransaction> => {
-  // ── Real API call (uncomment when backend is ready) ──────────────────────
-  // const res = await fetch(`${BASE_URL}/targets/${targetId}/transactions`, {
-  //   method: 'POST',
-  //   headers: getAuthHeaders(),
-  //   body: JSON.stringify(body),
-  // });
-  // if (!res.ok) throw new Error(`createTransaction failed: ${res.status}`);
-  // const json = await res.json();
-  // return json.data as ApiTransaction;
-  // ─────────────────────────────────────────────────────────────────────────
+): Promise<TransactionResponse> => {
+  const res = await fetch(`${BASE_URL}/api/targets/${targetId}/transactions`, {
+    method: 'POST',
+    headers: {
+      ...getAuthHeaders(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      ...body,
+      type: body.type.toUpperCase(),
+    }),
+  });
 
-  const now = new Date().toISOString();
-  return {
-    id: `tx-${Date.now()}`,
-    target_id: targetId,
-    type: body.type,
-    amount: body.amount,
-    note: body.note ?? null,
-    created_at: now,
-  };
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`createTransaction failed: ${res.status} - ${errorText}`);
+  }
+
+  const json = await res.json();
+  return json.data as TransactionResponse;
 };
 
 /** PATCH /targets/:targetId/schedule — update saving schedule */

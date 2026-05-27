@@ -30,7 +30,7 @@ server:
 
 google:
   client:
-    id: ${VITE_GOOGLE_CLIENT_ID}
+    id: ${VITE_GOOGLE_CLIENT_ID:828730702236-cbl0ko1hg4eehh7oedvhuh50qqel4dhq.apps.googleusercontent.com}
 
 jwt:
   secret: ${JWT_SECRET}

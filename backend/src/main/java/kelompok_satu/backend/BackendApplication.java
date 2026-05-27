@@ -16,7 +16,9 @@ public class BackendApplication {
 
 		dotenv.entries().forEach(e->{
 			if(e.getValue() != null){
+				System.out.println(e.getKey() + e.getValue());
 				System.setProperty(e.getKey(), e.getValue());
+
 			}
 		});
 
