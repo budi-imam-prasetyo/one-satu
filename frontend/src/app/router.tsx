@@ -26,6 +26,13 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const PublicOnlyRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, isLoading } = useAppContext();
+  if (isLoading) return null;
+  if (user) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+};
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -33,8 +40,8 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Home /> },
       { path: 'guest', element: <GuestPage /> },
-      { path: 'login', element: <LoginPage /> },
-      { path: 'register', element: <RegisterPage /> },
+      { path: 'login', element: <PublicOnlyRoute><LoginPage /></PublicOnlyRoute> },
+      { path: 'register', element: <PublicOnlyRoute><RegisterPage /></PublicOnlyRoute> },
       {
         path: 'dashboard',
         element: <ProtectedRoute><Dashboard /></ProtectedRoute>,
