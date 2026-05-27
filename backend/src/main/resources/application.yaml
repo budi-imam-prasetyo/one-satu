@@ -14,6 +14,9 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  task:
+    scheduling:
+      enabled: true
 
   jackson:
     serialization:
@@ -24,6 +27,7 @@ spring:
       enabled: true
       max-file-size: 5MB
       max-request-size: 5MB
+
 
 server:
   port: 8080

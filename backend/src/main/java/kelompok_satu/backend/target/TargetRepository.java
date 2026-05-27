@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -22,4 +23,10 @@ public interface TargetRepository extends JpaRepository<Target, UUID> {
     BigDecimal sumCurrentAmountByUserId(@Param("userId") UUID userId);
 
     Optional<Target> findByIdAndUserId(UUID id, UUID userId);
+
+    @Query("SELECT t FROM Target t WHERE t.status = :status AND t.nextNotifyDate = :date AND t.notifyAt IS NOT NULL")
+    List<Target> findActiveTargetsToNotify(
+            @Param("status") TargetStatus status,
+            @Param("date") LocalDate date
+    );
 }

@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalTime;
 
 public record UpdateTargetRequest(
         @NotBlank
@@ -27,5 +28,7 @@ public record UpdateTargetRequest(
         @DecimalMin("0")
         BigDecimal frequencyAmount,
 
-        String imageUrl
+        String imageUrl,
+
+        LocalTime notifyAt
 ) {}

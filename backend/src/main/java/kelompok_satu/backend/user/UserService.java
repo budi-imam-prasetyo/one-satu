@@ -227,4 +227,11 @@ public class UserService {
         user.setLastActive(LocalDateTime.now());
         return userRepository.save(user);
     }
+
+    @Transactional
+    public void updateFcmToken(User principal, String token) {
+        User user = userRepository.findById(principal.getId())
+                .orElseThrow(() -> new RuntimeException("User tidak ditemukan"));
+        user.setFcmToken(token);
+    }
 }

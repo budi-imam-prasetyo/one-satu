@@ -9,6 +9,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -57,6 +58,12 @@ public class Target extends AuditableEntity {
 
     @Column(name = "deadline", nullable = true)
     private LocalDate deadline;
+
+    @Column(name = "notify_at")
+    private LocalTime notifyAt;
+
+    @Column(name = "next_notify_date")
+    private LocalDate nextNotifyDate;
 
     @OneToMany(mappedBy = "target", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Transaction> transactions;
