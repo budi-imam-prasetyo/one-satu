@@ -10,6 +10,14 @@ import { TargetDetail } from './pages/TargetDetail';
 import { useAppContext } from './store';
 import * as authService from './services/authService';
 
+const LoadingScreen = () => {
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-300 border-t-black" />
+    </div>
+  );
+};
+
 // Halaman yang butuh login — jika belum login, redirect ke /login
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, targets, isLoading, logout } = useAppContext();
@@ -34,14 +42,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Halaman publik (Home, Login, Register) — jika sudah login, redirect ke /dashboard
 // FIX BUG 1: mencegah halaman awal muncul lagi setelah login di tab baru
-const PublicRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoading } = useAppContext();
-  const tokenValid = !!localStorage.getItem('access_token') && !authService.isAccessTokenExpired();
 
-  if (isLoading) return null;
-  if (user && tokenValid) return <Navigate to="/dashboard" replace />;
-  return <>{children}</>;
-};
 
 // Halaman guest — jika sudah login dengan akun asli, redirect ke /dashboard
 // FIX BUG 2: mencegah user yang sudah login masuk ke halaman guest lalu "kepental"
@@ -54,11 +55,22 @@ const GuestOnlyRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const PublicOnlyRoute = ({ children }: { children: React.ReactNode }) => {
+const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAppContext();
-  if (isLoading) return null;
-  if (user) return <Navigate to="/dashboard" replace />;
-  return <>{children}</>;
+
+  const tokenValid =
+    !!localStorage.getItem("access_token") &&
+    !authService.isAccessTokenExpired();
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  if (tokenValid) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
 };
 
 export const router = createBrowserRouter([
@@ -66,7 +78,7 @@ export const router = createBrowserRouter([
     path: '/',
     element: <MainLayout />,
     children: [
-      { index: true, element: <PublicRoute><Home /></PublicRoute> },
+      { index: true, element: <Home /> },
       { path: 'guest', element: <GuestOnlyRoute><GuestPage /></GuestOnlyRoute> },
       { path: 'login', element: <PublicRoute><LoginPage /></PublicRoute> },
       { path: 'register', element: <PublicRoute><RegisterPage /></PublicRoute> },
