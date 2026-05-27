@@ -33,21 +33,25 @@ export const GuestPage = () => {
     return Math.ceil(target / saving);
   })();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !targetAmount || !savingAmount) return;
 
-    addTarget({
-      name,
-      targetAmount: parseThousand(targetAmount),
-      savingAmount: parseThousand(savingAmount),
-      savingSchedule,
-      reminderEnabled,
-      reminderTime: reminderEnabled ? reminderTime : undefined,
-      isGuest: true,
-    });
-
-    navigate('/dashboard');
+    try {
+      await addTarget({
+        name,
+        targetAmount: parseThousand(targetAmount),
+        savingAmount: parseThousand(savingAmount),
+        savingSchedule,
+        reminderEnabled,
+        reminderTime: reminderEnabled ? reminderTime : undefined,
+        isGuest: true,
+      });
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Gagal membuat target tamu:', err);
+      alert('Gagal membuat target. Silakan coba lagi.');
+    }
   };
 
   return (
