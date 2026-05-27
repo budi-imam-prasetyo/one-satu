@@ -17,6 +17,7 @@ export const GuestPage = () => {
   const [savingSchedule, setSavingSchedule] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderTime, setReminderTime] = useState('08:00');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const estimatedDeadlineDate = (() => {
     const target = parseThousand(targetAmount);
@@ -37,6 +38,10 @@ export const GuestPage = () => {
     e.preventDefault();
     if (!name || !targetAmount || !savingAmount) return;
 
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+        
     try {
       await addTarget({
         name,
@@ -47,10 +52,13 @@ export const GuestPage = () => {
         reminderTime: reminderEnabled ? reminderTime : undefined,
         isGuest: true,
       });
+
       navigate('/dashboard');
     } catch (err) {
       console.error('Gagal membuat target tamu:', err);
       alert('Gagal membuat target. Silakan coba lagi.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -190,7 +198,8 @@ export const GuestPage = () => {
 
               <button
                 type="submit"
-                className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white py-3.5 rounded-xl font-semibold hover:bg-emerald-700 transition-all shadow-md active:scale-[0.98]"
+                disabled={isSubmitting}
+                className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white py-3.5 rounded-xl font-semibold hover:bg-emerald-700 transition-all shadow-md active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <Plus className="w-5 h-5" />
                 Mulai Target Ini

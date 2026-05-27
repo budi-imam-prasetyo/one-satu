@@ -9,6 +9,7 @@ export const calculateEstimatedDeadline = (
   if (schedule === 'daily') date.setDate(date.getDate() + periods);
   else if (schedule === 'weekly') date.setDate(date.getDate() + periods * 7);
   else date.setMonth(date.getMonth() + periods);
+  if (Number.isNaN(date.getTime())) return '';
   return date.toISOString();
 };
 
