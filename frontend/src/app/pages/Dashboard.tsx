@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAppContext } from '../store';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Target, TrendingUp, X, CheckCircle2, AlertTriangle, Clock, Loader2 } from 'lucide-react';
+import { Plus, Target, TrendingUp, X, CheckCircle2, AlertTriangle, Clock, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatThousand, parseThousand, formatRupiahFull } from '../utils/formatNumber';
 import { calculateEstimatedDeadline, scheduleLabel } from '../utils/calculations';
@@ -29,8 +29,8 @@ const SkeletonCard = () => (
 );
 
 export const Dashboard = () => {
-  const { user, targets: localTargets, addTarget } = useAppContext();
-  const navigate = useNavigate();
+  // FIX: Hanya satu useAppContext dengan semua yang dibutuhkan
+  const { user, targets: localTargets, addTarget, deleteTarget } = useAppContext();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filter, setFilter] = useState<'berlangsung' | 'tercapai'>('berlangsung');
@@ -48,12 +48,15 @@ export const Dashboard = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoadingTargets, setIsLoadingTargets] = useState(false);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deleteTargetName, setDeleteTargetName] = useState('');
 
   const totalSaved = stats?.totalSavings ?? targets.reduce((acc, curr) => acc + curr.currentAmount, 0);
   const completedTargets = stats?.totalCompleted ?? targets.filter(t => t.currentAmount >= t.targetAmount).length;
   const activeTargets = stats?.totalTargets != null
     ? Math.max(0, stats.totalTargets - stats.totalCompleted)
     : targets.filter(t => t.currentAmount < t.targetAmount).length;
+
   const filteredTargets = useMemo(() => (
     targets.filter(t =>
       filter === 'berlangsung' ? t.currentAmount < t.targetAmount : t.currentAmount >= t.targetAmount
@@ -114,6 +117,14 @@ export const Dashboard = () => {
     }
   }, [user]);
 
+  const handleDeleteTarget = async () => {
+    if (!deleteTargetId) return;
+    await deleteTarget(deleteTargetId);
+    setDeleteTargetId(null);
+    setDeleteTargetName('');
+    await Promise.all([loadTargets(), loadStats()]);
+  };
+
   const estimatedDeadlineDate = (() => {
     const target = parseThousand(targetAmount);
     const saving = parseThousand(savingAmount);
@@ -142,7 +153,6 @@ export const Dashboard = () => {
   const handleCreateTarget = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !targetAmount || !savingAmount) return;
-
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
@@ -156,7 +166,6 @@ export const Dashboard = () => {
         image: image || undefined,
         isGuest: false,
       });
-
       toast.success('Target berhasil dibuat');
       await Promise.all([loadTargets(), loadStats()]);
       setIsModalOpen(false);
@@ -185,16 +194,6 @@ export const Dashboard = () => {
       loadTargets();
     }
   }, [filter, user, loadTargets]);
-
-  React.useEffect(() => {
-    if (!user && targets.length === 0 && !isLoadingTargets) {
-      navigate('/login');
-    }
-  }, [user, targets, isLoadingTargets, navigate]);
-
-  if (!user && targets.length === 0 && !isLoadingTargets) {
-    return null;
-  }
 
   return (
     <div className="flex-1 bg-neutral-50 dark:bg-neutral-950 p-4 sm:p-6 lg:p-8">
@@ -336,60 +335,76 @@ export const Dashboard = () => {
               </p>
             </div>
           ) : (
+            // FIX: Grid dan .map() ditutup dengan benar di sini
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredTargets.map(target => {
                 const percentage = Math.min(100, Math.round((target.currentAmount / target.targetAmount) * 100));
                 const isCompleted = target.currentAmount >= target.targetAmount;
 
                 return (
-                  <Link
-                    key={target.id}
-                    to={`/target/${target.id}`}
-                    className="group bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-neutral-200 dark:border-neutral-800 hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all relative overflow-hidden flex flex-col"
-                  >
-                    {isCompleted && (
-                      <div className="absolute top-0 right-0 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg z-10">
-                        Tercapai
-                      </div>
-                    )}
-                    {target.image && (
-                      <div className="w-full h-32 bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
-                        <img src={target.image} alt={target.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      </div>
-                    )}
-                    <div className="p-6 flex-1 flex flex-col justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-1 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">{target.name}</h3>
-                        {target.estimatedDeadline && (
-                          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">
-                            Estimasi: {new Date(target.estimatedDeadline).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}
-                          </p>
-                        )}
-                      </div>
+                  <div key={target.id} className="relative group">
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setDeleteTargetId(target.id);
+                        setDeleteTargetName(target.name);
+                      }}
+                      className="absolute top-3 right-3 z-10 w-8 h-8 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-50 dark:hover:bg-red-950/30 hover:border-red-300 dark:hover:border-red-800"
+                      title="Hapus target"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-500 dark:text-red-400" />
+                    </button>
 
-                      <div>
-                        <div className="mt-4 mb-2 flex justify-between items-end">
-                          <div className="text-sm">
-                            <span className="font-semibold text-neutral-900 dark:text-neutral-100">{formatRupiahFull(target.currentAmount)}</span>
-                            <span className="text-neutral-500 dark:text-neutral-400 text-xs ml-1">/ {formatRupiahFull(target.targetAmount)}</span>
+                    <Link
+                      to={`/target/${target.id}`}
+                      className="group/card bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-neutral-200 dark:border-neutral-800 hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all relative overflow-hidden flex flex-col"
+                    >
+                      {isCompleted && (
+                        <div className="absolute top-0 right-0 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg z-10">
+                          Tercapai
+                        </div>
+                      )}
+                      {target.image && (
+                        <div className="w-full h-32 bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
+                          <img src={target.image} alt={target.name} className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300" />
+                        </div>
+                      )}
+                      <div className="p-6 flex-1 flex flex-col justify-between">
+                        <div>
+                          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-1 group-hover/card:text-emerald-700 dark:group-hover/card:text-emerald-400 transition-colors">{target.name}</h3>
+                          {target.estimatedDeadline && (
+                            <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">
+                              Estimasi: {new Date(target.estimatedDeadline).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <div className="mt-4 mb-2 flex justify-between items-end">
+                            <div className="text-sm">
+                              <span className="font-semibold text-neutral-900 dark:text-neutral-100">{formatRupiahFull(target.currentAmount)}</span>
+                              <span className="text-neutral-500 dark:text-neutral-400 text-xs ml-1">/ {formatRupiahFull(target.targetAmount)}</span>
+                            </div>
+                            <span className="font-bold text-emerald-600 dark:text-emerald-400">{percentage}%</span>
                           </div>
-                          <span className="font-bold text-emerald-600 dark:text-emerald-400">{percentage}%</span>
-                        </div>
-
-                        <div className="w-full bg-neutral-100 dark:bg-neutral-800 rounded-full h-2.5 overflow-hidden">
-                          <div className="h-2.5 rounded-full bg-emerald-500" style={{ width: `${percentage}%` }} />
+                          <div className="w-full bg-neutral-100 dark:bg-neutral-800 rounded-full h-2.5 overflow-hidden">
+                            <div className="h-2.5 rounded-full bg-emerald-500" style={{ width: `${percentage}%` }} />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Link>
+                    </Link>
+                  </div>
                 );
               })}
             </div>
+            // FIX: Tutup grid di sini, BUKAN di dalam .map()
           )}
         </div>
+        {/* FIX: Tutup max-w-7xl di sini */}
       </div>
 
-      {/* Create Target Modal */}
+      {/* FIX: Kedua modal AnimatePresence di luar semua div konten */}
+
+      {/* Modal Buat Target */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
@@ -398,7 +413,6 @@ export const Dashboard = () => {
               className="absolute inset-0 bg-neutral-900/40 dark:bg-black/60 backdrop-blur-sm"
               onClick={() => { setIsModalOpen(false); resetForm(); }}
             />
-
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="relative bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-neutral-100 dark:border-neutral-800"
@@ -559,6 +573,46 @@ export const Dashboard = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Modal Konfirmasi Hapus */}
+      <AnimatePresence>
+        {deleteTargetId && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-neutral-900/40 dark:bg-black/60 backdrop-blur-sm"
+              onClick={() => { setDeleteTargetId(null); setDeleteTargetName(''); }}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-3xl shadow-xl w-full max-w-sm p-8 text-center"
+            >
+              <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-5">
+                <Trash2 className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold text-neutral-900 dark:text-neutral-100 mb-2">Hapus Target?</h3>
+              <p className="text-neutral-500 dark:text-neutral-400 mb-7">
+                Target <span className="font-medium text-neutral-900 dark:text-neutral-100">"{deleteTargetName}"</span> akan dihapus permanen beserta riwayatnya.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setDeleteTargetId(null); setDeleteTargetName(''); }}
+                  className="flex-1 py-3 rounded-xl font-bold bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleDeleteTarget}
+                  className="flex-1 py-3 rounded-xl font-bold bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all"
+                >
+                  Ya, Hapus
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 };

@@ -165,21 +165,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem('tago_user');
   }, []);
 
+  const hasAuthToken = () => !!localStorage.getItem('access_token');
+
   const loadTargets = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      if (authService.isAccessTokenExpired()) {
-        logout();
-        return;
-      }
-      const apiTargets = await targetService.fetchTargets();
-      setTargets(apiTargets.map(mapTargetResponse));
-    } catch (err) {
-      console.error('Failed to load targets:', err);
-    } finally {
-      setIsLoading(false);
+  setIsLoading(true);
+  try {
+    // Jika tidak ada token atau token expired, stop dan set loading selesai
+    if (!hasAuthToken() || authService.isAccessTokenExpired()) {
+      if (authService.isAccessTokenExpired()) logout();
+      return;
     }
-  }, [logout]);
+    const apiTargets = await targetService.fetchTargets();
+    setTargets(apiTargets.map(mapTargetResponse));
+  } catch (err) {
+    console.error('Failed to load targets:', err);
+  } finally {
+    // Selalu jalan — termasuk saat early return di atas
+    setIsLoading(false);
+  }
+}, [logout]);
 
   const login = useCallback(async (userData: User) => {
     setUser(userData);
@@ -259,11 +263,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateTarget = async (id: string, amount: number, type: 'deposit' | 'withdraw') => {
-    // ── API call (uncomment when backend is ready) ─────────────────────────
-    // await targetService.createTransaction(id, { type, amount });
-    // const updated = await targetService.patchTarget(id, { ... });
-    // setTargets(prev => prev.map(t => t.id === id ? mapApiTarget(updated) : t));
-    // ──────────────────────────────────────────────────────────────────────
+    const shouldSyncBackend = hasAuthToken();
+
+    if (shouldSyncBackend) {
+      try {
+        await targetService.createTransaction(id, { type, amount });
+      } catch (err) {
+        console.error('Failed to sync transaction to backend:', err);
+      }
+    }
 
     setTargets(prev => prev.map(target => {
       if (target.id !== id) return target;
@@ -354,8 +362,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteTarget = async (id: string) => {
-    if (user) {
-      await targetService.deleteTarget(id);
+    if (hasAuthToken()) {
+      try {
+        await targetService.deleteTarget(id);
+      } catch (err) {
+        console.error('Failed to delete target from backend:', err);
+      }
     }
     setTargets(prev => prev.filter(t => t.id !== id));
   };
