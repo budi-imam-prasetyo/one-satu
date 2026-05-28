@@ -56,17 +56,18 @@ const GuestOnlyRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoading } = useAppContext();
+  const { isLoading } = useAppContext();
 
   const tokenValid =
     !!localStorage.getItem("access_token") &&
     !authService.isAccessTokenExpired();
+  const hasRealUser = !!localStorage.getItem('tago_user');
 
   if (isLoading) {
     return <LoadingScreen />;
   }
 
-  if (tokenValid) {
+  if (tokenValid && hasRealUser) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -78,7 +79,7 @@ export const router = createBrowserRouter([
     path: '/',
     element: <MainLayout />,
     children: [
-      { index: true, element: <Home /> },
+      { index: true, element: <PublicRoute><Home /></PublicRoute> },
       { path: 'guest', element: <GuestOnlyRoute><GuestPage /></GuestOnlyRoute> },
       { path: 'login', element: <PublicRoute><LoginPage /></PublicRoute> },
       { path: 'register', element: <PublicRoute><RegisterPage /></PublicRoute> },
