@@ -7,6 +7,7 @@ import { LoginPage } from './pages/Auth/LoginPage';
 import { RegisterPage } from './pages/Auth/RegisterPage';
 import { Dashboard } from './pages/Dashboard';
 import { TargetDetail } from './pages/TargetDetail';
+import { Profile } from './pages/Profile';
 import { useAppContext } from './store';
 import * as authService from './services/authService';
 
@@ -90,6 +91,10 @@ export const router = createBrowserRouter([
       {
         path: 'target/:id',
         element: <ProtectedRoute><TargetDetail /></ProtectedRoute>,
+      },
+      {
+        path: 'profile',
+        element: <ProtectedRoute><Profile /></ProtectedRoute>,
       },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
