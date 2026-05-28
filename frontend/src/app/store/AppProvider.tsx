@@ -37,6 +37,7 @@ export type Notification = {
 };
 
 export type User = {
+  isGuest: boolean;
   id: string;
   name: string;
   username?: string;

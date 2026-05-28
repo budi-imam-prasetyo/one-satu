@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router';
 import { useAppContext } from '../store';
 import { useTheme } from '../contexts/ThemeContext';
-import { Bell, Wallet, LogOut, LayoutDashboard, Sun, Moon, Home as HomeIcon, LogIn, X } from 'lucide-react';
+import { Bell, Wallet, LogOut, LayoutDashboard, Sun, Moon, Home as HomeIcon, LogIn, X, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const MainLayout = () => {
@@ -22,6 +22,9 @@ export const MainLayout = () => {
   const isTabActive = (path: string) => {
     if (path === '/dashboard') {
       return location.pathname === '/dashboard' || location.pathname.startsWith('/target/');
+    }
+    if (path === '/profile') {
+      return location.pathname === '/profile';
     }
     return location.pathname === path;
   };
@@ -135,21 +138,15 @@ export const MainLayout = () => {
                       Dashboard
                     </Link>
                     <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1"></div>
-                    <div className="flex items-center gap-2 bg-slate-100 dark:bg-neutral-800 px-3 py-1.5 rounded-xl border border-slate-200/30 dark:border-slate-700/30">
+                    <Link
+                      to="/profile"
+                      className="flex items-center gap-2 bg-slate-100 dark:bg-neutral-800 px-3 py-1.5 rounded-xl border border-slate-200/30 dark:border-slate-700/30 hover:bg-slate-200 dark:hover:bg-neutral-700 transition-colors"
+                    >
                       <div className="w-6 h-6 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center font-black text-xs">
                         {user.name.charAt(0).toUpperCase()}
                       </div>
                       <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{user.name.split(' ')[0]}</span>
-                    </div>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={handleLogout}
-                      className="p-2.5 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
-                      title="Keluar"
-                    >
-                      <LogOut className="w-5 h-5" />
-                    </motion.button>
+                    </Link>
                   </>
                 ) : (
                   <div className="flex items-center gap-2">
@@ -169,7 +166,7 @@ export const MainLayout = () => {
       </nav>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col relative z-10">
+      <main className="flex-1 flex flex-col relative">
         <Outlet />
       </main>
 
@@ -221,17 +218,26 @@ export const MainLayout = () => {
           </button>
         )}
 
-        {/* Tab 3: Login/Logout */}
+        {/* Tab 3: Login/Profile */}
         {user ? (
-          <button
-            onClick={handleLogout}
+          <Link
+            to="/profile"
             className="flex flex-col items-center justify-center flex-1 h-full relative"
           >
-            <div className="p-2 rounded-xl text-muted-foreground hover:text-red-500 transition-colors">
-              <LogOut className="w-5 h-5" />
+            <div className={`p-2 rounded-xl relative ${isTabActive('/profile') ? 'text-emerald-500 dark:text-emerald-400' : 'text-muted-foreground'} hover:text-emerald-500 transition-colors`}>
+              <User className="w-5 h-5" />
+              {isTabActive('/profile') && (
+                <motion.div
+                  layoutId="activeTabMobile"
+                  className="absolute inset-0 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-xl -z-10"
+                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                />
+              )}
             </div>
-            <span className="text-[9px] font-bold mt-0.5 text-muted-foreground">Keluar</span>
-          </button>
+            <span className={`text-[9px] font-bold mt-0.5 ${isTabActive('/profile') ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+              Profil
+            </span>
+          </Link>
         ) : (
           <Link
             to="/login"

@@ -222,7 +222,7 @@ export const Dashboard = () => {
         )}
 
         {/* Dashboard Header Panel */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="hidden sm:flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-display tracking-tight">Halo, {user ? user.name.split(' ')[0] : 'Tamu'}! 👋</h1>
             <p className="text-muted-foreground text-xs sm:text-sm mt-1">Pantau, tabung, dan selesaikan target impian Anda hari ini.</p>
@@ -758,6 +758,19 @@ export const Dashboard = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Floating Action Button for mobile screens (Tambah Target) */}
+      <div className="sm:hidden fixed bottom-24 right-6 z-40">
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setIsModalOpen(true)}
+          className="w-14 h-14 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-full shadow-[0_8px_30px_rgba(16,185,129,0.35)] flex items-center justify-center transition-all"
+          title="Buat Target Baru"
+        >
+          <Plus className="w-6 h-6 text-slate-950" />
+        </motion.button>
+      </div>
 
     </div>
   );

@@ -587,7 +587,7 @@ export const TargetDetail = () => {
 
       {/* Floating Action Button (FAB) for transaction save */}
       {!isCompleted && (
-        <div className="fixed bottom-6 right-6 lg:bottom-10 lg:right-10 z-40">
+        <div className="fixed bottom-24 right-6 lg:bottom-10 lg:right-10 z-40">
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
