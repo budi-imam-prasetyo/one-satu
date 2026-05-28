@@ -29,7 +29,8 @@ const SkeletonCard = () => (
 );
 
 export const Dashboard = () => {
-  const { user, targets: localTargets, addTarget, deleteTarget } = useAppContext();
+  const { user, isGuest, targets: localTargets, addTarget, deleteTarget } = useAppContext();
+
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filter, setFilter] = useState<'berlangsung' | 'tercapai'>('berlangsung');
@@ -199,7 +200,7 @@ export const Dashboard = () => {
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Guest Warning Card Banner */}
-        {!user && targets.length > 0 && (
+        {isGuest && !user && (
           <motion.div 
             initial={{ opacity: 0, y: -15 }}
             animate={{ opacity: 1, y: 0 }}

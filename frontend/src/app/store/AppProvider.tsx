@@ -2,10 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import * as targetService from '../services/targetService';
 import * as authService from '../services/authService';
 import { ApiTarget, TargetResponse, TargetDetailResponse, TargetFrequency } from '../types/target';
-
 import { calculateEstimatedDeadline } from '../utils/calculations';
-
-// ─── App-layer types (camelCase, used throughout UI) ──────────────────────
 
 export type Target = {
   id: string;
@@ -48,6 +45,7 @@ export type User = {
 
 interface AppContextType {
   user: User | null;
+  isGuest: boolean; // ← BARU
   isLoading: boolean;
   login: (user: User) => Promise<void>;
   logout: () => void;
@@ -148,6 +146,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : null;
   });
 
+
+  const [isGuest, setIsGuest] = useState<boolean>(() => {
+    return !!localStorage.getItem('guest_temp_id');
+  });
+
   const [targets, setTargets] = useState<Target[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [notifications, setNotifications] = useState<Notification[]>([
@@ -159,6 +162,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const logout = useCallback(() => {
     setUser(null);
     setTargets([]);
+    setIsGuest(false); // ← BARU
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem(guestTempKey);
@@ -168,25 +172,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const hasAuthToken = () => !!localStorage.getItem('access_token');
 
   const loadTargets = useCallback(async () => {
-  setIsLoading(true);
-  try {
-    // Jika tidak ada token atau token expired, stop dan set loading selesai
-    if (!hasAuthToken() || authService.isAccessTokenExpired()) {
-      if (authService.isAccessTokenExpired()) logout();
-      return;
+    setIsLoading(true);
+    try {
+      if (!hasAuthToken() || authService.isAccessTokenExpired()) {
+        if (authService.isAccessTokenExpired()) logout();
+        return;
+      }
+      const apiTargets = await targetService.fetchTargets();
+      setTargets(apiTargets.map(mapTargetResponse));
+    } catch (err) {
+      console.error('Failed to load targets:', err);
+    } finally {
+      setIsLoading(false);
     }
-    const apiTargets = await targetService.fetchTargets();
-    setTargets(apiTargets.map(mapTargetResponse));
-  } catch (err) {
-    console.error('Failed to load targets:', err);
-  } finally {
-    // Selalu jalan — termasuk saat early return di atas
-    setIsLoading(false);
-  }
-}, [logout]);
+  }, [logout]);
 
   const login = useCallback(async (userData: User) => {
     setUser(userData);
+    setIsGuest(false); // ← BARU
     localStorage.setItem('tago_user', JSON.stringify(userData));
     localStorage.removeItem(guestTempKey);
     await loadTargets();
@@ -225,6 +228,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (tempId) {
       localStorage.setItem(guestTempKey, tempId);
+      setIsGuest(true); // ← BARU
     }
     return tempId;
   };
@@ -378,7 +382,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   return (
     <AppContext.Provider value={{
-      user, isLoading, login, logout,
+      user, isGuest, isLoading, login, logout, 
       targets, addTarget, updateTarget, editTarget, deleteTarget,
       notifications, markNotificationRead,
     }}>
