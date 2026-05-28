@@ -1,5 +1,6 @@
 package kelompok_satu.backend.infrastructure.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -19,9 +20,19 @@ import java.util.List;
 
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 public class SecurityConfig {
+
+    private final List<String> allowedOriginPatterns;
+
+    public SecurityConfig(
+            @Value("#{'${app.cors.allowed-origins:http://localhost:*,http://127.0.0.1:*}'.split(',')}")
+            List<String> allowedOriginPatterns
+    ) {
+        this.allowedOriginPatterns = allowedOriginPatterns;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(
@@ -36,6 +47,7 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/", "/api/auth/**", "/uploads/**").permitAll()
                         .requestMatchers("/api/users/**", "/api/targets/**", "/api/notifications/**").authenticated()
                         .anyRequest().permitAll()
@@ -54,14 +66,13 @@ public class SecurityConfig {
 
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:5173"
-        ));
+        configuration.setAllowedOriginPatterns(allowedOriginPatterns);
 
         configuration.setAllowedMethods(List.of(
                 "GET",
                 "POST",
                 "PUT",
+                "PATCH",
                 "DELETE",
                 "OPTIONS"
         ));
